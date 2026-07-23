@@ -8,7 +8,7 @@ using SymphonyTest1.IntegrationTests.Infrastructure;
 namespace SymphonyTest1.E2ETests.Features;
 
 [TestFixture]
-public class GreetingsE2ETests
+public class ApplicationWorkflowTests
 {
     private IntegrationTestWebAppFactory _factory = null!;
     private HttpClient _client = null!;
@@ -43,27 +43,27 @@ public class GreetingsE2ETests
     public async Task CompleteGreetingWorkflow_CreatesLanguageAndGreeting_CanRetrieveGreeting()
     {
         // Arrange - Create a new language
-        var languageRequest = new CreateLanguageRequest("Japanese", "ja");
+        var languageRequest = new CreateLanguage.Request("Japanese", "ja");
         var languageResponse = await _client.PostAsJsonAsync("/api/languages", languageRequest);
-        var language = await languageResponse.Content.ReadFromJsonAsync<LanguageResponse>();
+        var language = await languageResponse.Content.ReadFromJsonAsync<CreateLanguage.Response>();
         Assert.That(language, Is.Not.Null);
 
         // Act - Create a greeting for that language
-        var greetingRequest = new CreateGreetingRequest(language!.Id, "こんにちは", false);
+        var greetingRequest = new CreateGreeting.Request(language!.Id, "こんにちは", false);
         var greetingResponse = await _client.PostAsJsonAsync("/api/greetings", greetingRequest);
-        
+
         // Assert - Greeting was created
         Assert.That(greetingResponse.StatusCode, Is.EqualTo(HttpStatusCode.Created));
-        var greeting = await greetingResponse.Content.ReadFromJsonAsync<GreetingResponse>();
+        var greeting = await greetingResponse.Content.ReadFromJsonAsync<CreateGreeting.Response>();
         Assert.That(greeting, Is.Not.Null);
         Assert.That(greeting!.GreetingText, Is.EqualTo("こんにちは"));
 
         // Act - Retrieve greeting by language code
         var getByLanguageResponse = await _client.GetAsync("/api/greetings/by-language/ja");
-        
+
         // Assert - Can retrieve greeting by language
         Assert.That(getByLanguageResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var retrievedGreeting = await getByLanguageResponse.Content.ReadFromJsonAsync<GreetingByLanguageResponse>();
+        var retrievedGreeting = await getByLanguageResponse.Content.ReadFromJsonAsync<GetGreetingByLanguage.Response>();
         Assert.That(retrievedGreeting, Is.Not.Null);
         Assert.That(retrievedGreeting!.GreetingText, Is.EqualTo("こんにちは"));
         Assert.That(retrievedGreeting.Language, Is.EqualTo("Japanese"));
@@ -77,7 +77,7 @@ public class GreetingsE2ETests
 
         // Assert
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var greeting = await response.Content.ReadFromJsonAsync<GreetingByLanguageResponse>();
+        var greeting = await response.Content.ReadFromJsonAsync<GetGreetingByLanguage.Response>();
         Assert.That(greeting, Is.Not.Null);
         Assert.That(greeting!.Language, Is.EqualTo("English"));
         Assert.That(greeting.LanguageCode, Is.EqualTo("en"));
@@ -88,13 +88,13 @@ public class GreetingsE2ETests
     public async Task ReferentialIntegrity_DeletingLanguage_CascadesDeleteToGreetings()
     {
         // Arrange - Create language and greeting
-        var languageRequest = new CreateLanguageRequest("Chinese", "zh");
+        var languageRequest = new CreateLanguage.Request("Chinese", "zh");
         var languageResponse = await _client.PostAsJsonAsync("/api/languages", languageRequest);
-        var language = await languageResponse.Content.ReadFromJsonAsync<LanguageResponse>();
-        
-        var greetingRequest = new CreateGreetingRequest(language!.Id, "你好", false);
+        var language = await languageResponse.Content.ReadFromJsonAsync<CreateLanguage.Response>();
+
+        var greetingRequest = new CreateGreeting.Request(language!.Id, "你好", false);
         var greetingResponse = await _client.PostAsJsonAsync("/api/greetings", greetingRequest);
-        var greeting = await greetingResponse.Content.ReadFromJsonAsync<GreetingResponse>();
+        var greeting = await greetingResponse.Content.ReadFromJsonAsync<CreateGreeting.Response>();
 
         // Act - Delete the language
         var deleteResponse = await _client.DeleteAsync($"/api/languages/{language.Id}");

@@ -1,231 +1,129 @@
 ---
 title: Greetings API
-description: 'CRUD operations for greetings'
+description: 'Greeting request and response contracts'
 ---
 
 # Greetings API
 
-Manage greetings in different languages.
+## Greeting response
+
+```json
+{
+  "id": "9ab12c34-5678-90de-f123-456789abcdef",
+  "languageId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "greetingText": "Hello",
+  "formal": false,
+  "createdAt": "2026-07-23T10:00:00Z",
+  "updatedAt": "2026-07-23T10:00:00Z"
+}
+```
 
 ## GET /api/greetings
 
-Retrieve all greetings.
+Returns all greetings ordered by greeting text.
 
-### Response
+**Responses**
 
-Returns an array of greeting objects.
-
-### Example Response
-
-```json
-[
-  {
-    "id": "9ab12c34-5678-90de-f123-456789abcdef",
-    "languageId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    "greetingText": "Hello",
-    "formal": false,
-    "createdAt": "2024-01-15T10:00:00Z",
-    "updatedAt": "2024-01-15T10:00:00Z"
-  }
-]
-```
-
-### Example Request
-
-```bash
-curl http://localhost:8080/api/greetings
-```
-
----
+- `200 OK` — array of greeting responses
 
 ## GET /api/greetings/{id}
 
-Retrieve a specific greeting by ID.
-
-### Path Parameters
-
 <ParamField path="id" type="string" required>
-  UUID of the greeting
+  Greeting UUID.
 </ParamField>
 
-### Response
+**Responses**
 
-Returns a single greeting object.
-
-### Status Codes
-
-- `200 OK` - Greeting found
-- `404 Not Found` - Greeting not found
-
-### Example Request
-
-```bash
-curl http://localhost:8080/api/greetings/9ab12c34-5678-90de-f123-456789abcdef
-```
-
----
+- `200 OK` — greeting response
+- `404 Not Found` — greeting does not exist
 
 ## GET /api/greetings/by-language/{languageCode}
 
-Retrieve a greeting by language code.
-
-### Path Parameters
-
 <ParamField path="languageCode" type="string" required>
-  Language code (e.g., "en", "es", "ko")
+  Language code such as `en`, `es`, or `ko`.
 </ParamField>
-
-### Query Parameters
 
 <ParamField query="formal" type="boolean">
-  Filter by formality (true for formal, false for informal)
+  Optional formality filter. When omitted, informal results sort first.
 </ParamField>
 
-### Response
+```bash
+curl "http://localhost:8080/api/greetings/by-language/en?formal=true"
+```
 
-Returns a greeting with language information.
-
-### Example Response
+Returns:
 
 ```json
 {
   "language": "English",
   "languageCode": "en",
-  "greetingText": "Hello",
-  "formal": false
+  "greetingText": "Good morning",
+  "formal": true
 }
 ```
 
-### Status Codes
+**Responses**
 
-- `200 OK` - Greeting found
-- `404 Not Found` - No greeting found for language
-
-### Example Requests
-
-```bash
-# Get any greeting for English
-curl http://localhost:8080/api/greetings/by-language/en
-
-# Get formal greeting for English
-curl "http://localhost:8080/api/greetings/by-language/en?formal=true"
-
-# Get informal greeting for Spanish
-curl "http://localhost:8080/api/greetings/by-language/es?formal=false"
-```
-
----
+- `200 OK` — matching language-aware greeting
+- `404 Not Found` — no greeting matches the code and optional formality
 
 ## POST /api/greetings
 
-Create a new greeting.
-
-### Request Body
-
 <ParamField body="languageId" type="string" required>
-  UUID of the language
+  UUID of an existing language.
 </ParamField>
 
 <ParamField body="greetingText" type="string" required>
-  The greeting text
+  Greeting text, at most 255 characters.
 </ParamField>
 
 <ParamField body="formal" type="boolean" required>
-  Whether this is a formal greeting
+  Whether the greeting is formal.
 </ParamField>
-
-### Example Request
 
 ```bash
 curl -X POST http://localhost:8080/api/greetings \
   -H "Content-Type: application/json" \
   -d '{
-    "languageId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    "greetingText": "Good morning",
-    "formal": true
+    "languageId":"3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "greetingText":"Bonjour",
+    "formal":true
   }'
 ```
 
-### Response
+**Responses**
 
-Returns the created greeting object.
-
-### Status Codes
-
-- `201 Created` - Greeting created successfully
-- `400 Bad Request` - Invalid request (missing fields or invalid language ID)
-
----
+- `201 Created` — created greeting; `Location` identifies its GET resource
+- `400 Bad Request` — validation problem, including a missing referenced language
 
 ## PUT /api/greetings/{id}
 
-Update an existing greeting.
+Replaces `languageId`, `greetingText`, and `formal` using the same validation rules as create.
 
-### Path Parameters
+**Responses**
 
-<ParamField path="id" type="string" required>
-  UUID of the greeting to update
-</ParamField>
-
-### Request Body
-
-<ParamField body="languageId" type="string" required>
-  Updated language ID
-</ParamField>
-
-<ParamField body="greetingText" type="string" required>
-  Updated greeting text
-</ParamField>
-
-<ParamField body="formal" type="boolean" required>
-  Updated formality flag
-</ParamField>
-
-### Example Request
-
-```bash
-curl -X PUT http://localhost:8080/api/greetings/9ab12c34-5678-90de-f123-456789abcdef \
-  -H "Content-Type: application/json" \
-  -d '{
-    "languageId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    "greetingText": "Hi there",
-    "formal": false
-  }'
-```
-
-### Response
-
-Returns the updated greeting object.
-
-### Status Codes
-
-- `200 OK` - Greeting updated successfully
-- `404 Not Found` - Greeting not found
-- `400 Bad Request` - Invalid request
-
----
+- `200 OK` — updated greeting
+- `400 Bad Request` — validation problem
+- `404 Not Found` — greeting does not exist
 
 ## DELETE /api/greetings/{id}
 
-Delete a greeting.
+**Responses**
 
-### Path Parameters
+- `204 No Content` — greeting deleted
+- `404 Not Found` — greeting does not exist
 
-<ParamField path="id" type="string" required>
-  UUID of the greeting to delete
-</ParamField>
+## Missing language error
 
-### Example Request
-
-```bash
-curl -X DELETE http://localhost:8080/api/greetings/9ab12c34-5678-90de-f123-456789abcdef
+```json
+{
+  "title": "One or more validation errors occurred.",
+  "status": 400,
+  "errors": {
+    "languageId": ["The specified language does not exist."]
+  }
+}
 ```
 
-### Response
-
-No content returned on success.
-
-### Status Codes
-
-- `204 No Content` - Greeting deleted successfully
-- `404 Not Found` - Greeting not found
+Unexpected failures use the global RFC 7807 response and do not expose exception or database
+details.

@@ -1,147 +1,63 @@
 ---
-title: Languages Feature
-description: 'Manage languages in the system'
+title: Languages Capability
+description: 'Independent language catalog request slices'
 ---
 
-# Languages Feature
+# Languages Capability
 
-The Languages feature allows you to manage a catalog of languages in the system. It provides full CRUD (Create, Read, Update, Delete) operations.
+`Languages` is a capability containing five independent request slices. It is not one CRUD slice.
 
-## Overview
+| Slice | Route | Purpose |
+| --- | --- | --- |
+| `ListLanguages` | `GET /api/languages` | Return the catalog ordered by name |
+| `GetLanguage` | `GET /api/languages/{id}` | Return one language |
+| `CreateLanguage` | `POST /api/languages` | Validate and create a language |
+| `UpdateLanguage` | `PUT /api/languages/{id}` | Validate and replace language fields |
+| `DeleteLanguage` | `DELETE /api/languages/{id}` | Delete a language and cascade greetings |
 
-Languages are the foundation for the greetings feature. Each language has:
-- A unique identifier (UUID)
-- A human-readable name (e.g., "English")
-- A language code (e.g., "en")
-- Timestamps for creation and updates
+Each slice owns its response projection and SQL. There is no `LanguageRepository` or shared
+`Language` persistence model.
 
-## Use Cases
+## Contracts
 
-- Add new languages to support additional greetings
-- Update language information
-- List all available languages
-- Retrieve specific language details
-- Remove languages (will cascade delete associated greetings)
+Create and update accept:
 
-## Data Model
-
-```csharp
-public record Language
+```json
 {
-    public Guid Id { get; init; }
-    public string Name { get; init; }
-    public string Code { get; init; }
-    public DateTime CreatedAt { get; init; }
-    public DateTime UpdatedAt { get; init; }
+  "name": "French",
+  "code": "fr"
 }
 ```
 
-## Request/Response DTOs
+Name is required and limited to 100 characters. Code is required and limited to 10 characters.
+The database also enforces unique names and codes.
 
-### CreateLanguageRequest
-```csharp
-public record CreateLanguageRequest(string Name, string Code);
-```
+Successful reads and writes return:
 
-### UpdateLanguageRequest
-```csharp
-public record UpdateLanguageRequest(string Name, string Code);
-```
-
-### LanguageResponse
-```csharp
-public record LanguageResponse(
-    Guid Id,
-    string Name,
-    string Code,
-    DateTime CreatedAt,
-    DateTime UpdatedAt
-);
-```
-
-## Example Usage
-
-### Create a Language
-```bash
-curl -X POST http://localhost:8080/api/languages \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "French",
-    "code": "fr"
-  }'
-```
-
-Response:
 ```json
 {
   "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "name": "French",
   "code": "fr",
-  "createdAt": "2024-01-15T10:30:00Z",
-  "updatedAt": "2024-01-15T10:30:00Z"
+  "createdAt": "2026-07-23T10:30:00Z",
+  "updatedAt": "2026-07-23T10:30:00Z"
 }
 ```
 
-### List All Languages
-```bash
-curl http://localhost:8080/api/languages
-```
+## Slice-specific implementation
 
-Response:
-```json
-[
-  {
-    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    "name": "English",
-    "code": "en",
-    "createdAt": "2024-01-15T10:00:00Z",
-    "updatedAt": "2024-01-15T10:00:00Z"
-  },
-  {
-    "id": "7fb12a51-8934-4a12-9d5f-1f876c59e421",
-    "name": "Spanish",
-    "code": "es",
-    "createdAt": "2024-01-15T10:15:00Z",
-    "updatedAt": "2024-01-15T10:15:00Z"
-  }
-]
-```
+- Queries project directly into their own response records.
+- Create and update keep their FluentValidation `RequestValidator` nested in the slice and invoke
+  it asynchronously before opening a database connection.
+- Create and update use `RETURNING` to avoid a second connection and race window.
+- Unique name or code violations are translated to `409 Conflict`.
+- Delete relies on the database foreign key's `ON DELETE CASCADE` behavior.
+- All database work receives the HTTP request cancellation token.
 
-## Implementation Details
+## Tests
 
-The Languages feature is implemented using:
-- **Repository Pattern** - `LanguageRepository` handles all data access
-- **Dapper** - Lightweight ORM for efficient SQL queries
-- **Minimal APIs** - Clean, functional endpoint definitions
+The language integration suite covers listing, get/not-found, valid and invalid creation,
+uniqueness conflict, get/update, update/not-found, and delete/not-found. Unit tests cover
+deterministic validation rules, while the cross-capability cascade is verified end-to-end.
 
-### Logging
-All operations are logged with structured logging:
-```csharp
-logger.LogInformation("Creating language with code {LanguageCode}", request.Code);
-logger.LogInformation("Updated language with id {LanguageId}", id);
-```
-
-### Validation
-Basic validation ensures:
-- Name and Code are not empty
-- Database constraints enforce uniqueness
-
-## Testing
-
-The feature includes comprehensive tests:
-
-### Unit Tests
-- Constructor validation
-- Parameter validation
-
-### Integration Tests
-- CRUD operations with real database
-- Unique constraint validation
-
-### E2E Tests
-- Complete workflows via HTTP API
-- Referential integrity with greetings
-
-## API Reference
-
-For detailed API documentation, see [Languages API Reference](/api-reference/languages).
+See the [Languages API reference](/api-reference/languages) for exact status codes.

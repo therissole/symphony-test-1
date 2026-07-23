@@ -1,64 +1,44 @@
 ---
 title: Health API
-description: 'Health check endpoints'
+description: 'Database connectivity health endpoint'
 ---
 
-# Health Check API
-
-The health endpoint provides a way to monitor the application's health status, including database connectivity.
+# Health API
 
 ## GET /api/health
 
-Check the health status of the application.
+Checks whether the API can open a PostgreSQL connection and execute `SELECT 1`.
 
-### Response
+### Healthy response
 
-<ResponseField name="status" type="string">
-  The health status: "Healthy" or "Unhealthy"
-</ResponseField>
-
-<ResponseField name="database" type="string">
-  Database connection status: "Connected" or error message
-</ResponseField>
-
-<ResponseField name="timestamp" type="string">
-  ISO 8601 timestamp of the health check
-</ResponseField>
-
-### Example Response (Healthy)
+`200 OK`
 
 ```json
 {
   "status": "Healthy",
   "database": "Connected",
-  "timestamp": "2024-01-15T10:00:00.000Z"
+  "timestamp": "2026-07-23T10:00:00Z"
 }
 ```
 
-### Example Response (Unhealthy)
+### Unhealthy response
+
+`503 Service Unavailable`
 
 ```json
 {
   "status": "Unhealthy",
-  "database": "Error: Connection refused",
-  "timestamp": "2024-01-15T10:00:00.000Z"
+  "database": "Unavailable",
+  "timestamp": "2026-07-23T10:00:00Z"
 }
 ```
 
-### Status Codes
-
-- `200 OK` - Application is healthy
-- `503 Service Unavailable` - Application is unhealthy
-
-### Example Request
+The API logs the underlying failure but deliberately does not expose connection strings, server
+details, or exception messages in the response.
 
 ```bash
 curl http://localhost:8080/api/health
 ```
 
-### Use Cases
-
-- **Container Health Checks** - Docker/Kubernetes readiness probes
-- **Load Balancer Checks** - Determine if instance should receive traffic
-- **Monitoring** - External monitoring systems
-- **Debugging** - Verify database connectivity during troubleshooting
+Docker Compose uses this endpoint as the API container health check. It is a dependency-aware
+readiness signal, not a process-only liveness probe.

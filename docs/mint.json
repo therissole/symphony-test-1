@@ -1,10 +1,5 @@
 {
-  "name": "C# AI-Enabled SDLC Starter Kit",
-  "logo": {
-    "dark": "/logo/dark.svg",
-    "light": "/logo/light.svg"
-  },
-  "favicon": "/favicon.svg",
+  "name": "ASP.NET Core Vertical Slice Reference",
   "colors": {
     "primary": "#0D9373",
     "light": "#07C983",

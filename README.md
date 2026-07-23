@@ -1,199 +1,159 @@
-# C# AI-Enabled SDLC Starter Kit
+# ASP.NET Core Vertical Slice Architecture Reference
 
-A comprehensive starter project for C# applications that demonstrates best practices for modern software development with AI-assisted workflows.
+An executable .NET 10 reference for request-oriented Vertical Slice Architecture (VSA), inspired
+by Jimmy Bogard's approach: treat each request as a distinct use case, maximize cohesion inside the
+slice, and minimize coupling between slices.
 
-## Features
+This is intentionally not a layered `Controller → Service → Repository` application. Every API
+operation owns its route, contract, validation, handler, SQL, mapping, and expected errors.
 
-- ✅ **ASP.NET Core** - Modern web API with minimal APIs
-- ✅ **Vertical Slice Architecture** - Feature-based code organization (Jimmy Bogard pattern)
-- ✅ **PostgreSQL** - Enterprise-grade relational database
-- ✅ **Flyway** - Automated database migrations
-- ✅ **Dapper** - Lightweight, high-performance ORM
-- ✅ **Docker** - Full containerization with docker-compose
-- ✅ **NUnit** - Unit, integration, and E2E test suites
-- ✅ **Testcontainers** - Real database testing
-- ✅ **Serilog** - Structured logging
-- ✅ **OpenTelemetry** - Distributed tracing and observability
-- ✅ **Health Checks** - Database connectivity monitoring
-- ✅ **Feature Flags** - Microsoft Feature Management
-- ✅ **GitHub Actions** - Complete CI/CD pipeline
-- ✅ **Mintlify** - Beautiful documentation
+## What the reference demonstrates
 
-## Quick Start
+- ASP.NET Core Minimal APIs with typed results and generated OpenAPI
+- One request/use case per slice
+- Slice-local FluentValidation rules with explicit asynchronous handler invocation
+- Request-specific Dapper SQL against PostgreSQL
+- Atomic command responses with PostgreSQL `RETURNING`
+- RFC 7807 Problem Details and validation problems
+- Cancellation-aware database I/O
+- Structured request and command logging with Serilog
+- OpenTelemetry tracing for ASP.NET Core, HTTP clients, and Npgsql
+- NUnit unit, integration, and end-to-end tests
+- Real PostgreSQL tests through Testcontainers
+- Flyway migrations and a complete Docker Compose environment
+- Repository instructions, custom agents, and a reusable VSA agent skill
 
-### Using Docker (Recommended)
+## Quick start
+
+Prerequisites: Docker with Compose. The .NET 10 SDK is also required for local development.
 
 ```bash
-# Clone the repository
 git clone https://github.com/therissole/symphony-test-1.git
 cd symphony-test-1
-
-# Start all services
-docker-compose up -d
-
-# Wait for services to initialize (~30 seconds)
-# Check the API health
+docker compose up --build -d
+docker compose ps
 curl http://localhost:8080/api/health
 ```
 
-The application will be available at http://localhost:8080
+The API is available at `http://localhost:8080`. In Development, its OpenAPI document is at
+`http://localhost:8080/openapi/v1.json`.
 
-### Local Development
+If those host ports are already occupied, set `SYMPHONY_API_PORT` and
+`SYMPHONY_POSTGRES_PORT` before running Compose; container-to-container ports remain unchanged.
 
-```bash
-# Restore dependencies
-dotnet restore
-
-# Run tests
-dotnet test
-
-# Run the API (requires PostgreSQL running)
-cd src/symphony-test-1.Api
-dotnet run
-```
-
-## Project Structure
-
-```
-.
-├── src/
-│   └── symphony-test-1.Api/           # Main API application
-│       ├── Features/              # Vertical slice features
-│       │   ├── Languages/         # Language CRUD operations
-│       │   ├── Greetings/        # Greeting CRUD operations
-│       │   └── Health/           # Health check endpoint
-│       └── Infrastructure/        # Shared infrastructure
-├── tests/
-│   ├── unit/                     # Unit tests
-│   ├── integration/              # Integration tests
-│   └── e2e/                      # End-to-end tests
-├── db/
-│   └── migrations/               # Flyway SQL migrations
-├── docs/                         # Mintlify documentation
-├── .github/
-│   └── workflows/                # CI/CD pipelines
-├── Dockerfile                    # API container definition
-└── docker-compose.yml            # Multi-container orchestration
-```
-
-## API Endpoints
-
-### Health
-- `GET /api/health` - Check application and database health
-
-### Languages
-- `GET /api/languages` - List all languages
-- `GET /api/languages/{id}` - Get language by ID
-- `POST /api/languages` - Create new language
-- `PUT /api/languages/{id}` - Update language
-- `DELETE /api/languages/{id}` - Delete language
-
-### Greetings
-- `GET /api/greetings` - List all greetings
-- `GET /api/greetings/{id}` - Get greeting by ID
-- `GET /api/greetings/by-language/{code}` - Get greeting by language code
-- `POST /api/greetings` - Create new greeting
-- `PUT /api/greetings/{id}` - Update greeting
-- `DELETE /api/greetings/{id}` - Delete greeting
-
-## Example Usage
+Stop and remove the local containers and data volume with:
 
 ```bash
-# List all languages
-curl http://localhost:8080/api/languages
-
-# Get a greeting in English
-curl http://localhost:8080/api/greetings/by-language/en
-
-# Get a formal greeting in Spanish
-curl "http://localhost:8080/api/greetings/by-language/es?formal=true"
-
-# Create a new language
-curl -X POST http://localhost:8080/api/languages \
-  -H "Content-Type: application/json" \
-  -d '{"name": "French", "code": "fr"}'
+docker compose down -v
 ```
 
-## Testing
+## Project structure
 
-The project includes three levels of testing:
+```text
+src/symphony-test-1.Api/
+├── Features/
+│   ├── Languages/
+│   │   ├── LanguagesFeature.cs
+│   │   ├── ListLanguages.cs
+│   │   ├── GetLanguage.cs
+│   │   ├── CreateLanguage.cs
+│   │   ├── UpdateLanguage.cs
+│   │   └── DeleteLanguage.cs
+│   ├── Greetings/
+│   │   ├── GreetingsFeature.cs
+│   │   └── <one file per greeting request>
+│   └── Health/
+│       ├── HealthFeature.cs
+│       └── GetHealth.cs
+├── Infrastructure/
+│   └── Database.cs
+└── Program.cs
+
+tests/
+├── unit/          # deterministic validation rules
+├── integration/   # every slice through HTTP + real PostgreSQL
+└── e2e/           # workflows spanning multiple slices
+
+.github/
+├── agents/        # project-specific Copilot agents
+├── skills/        # reusable VSA implementation workflow
+└── workflows/     # build, test, audit, and container verification
+```
+
+`Languages` and `Greetings` are capabilities. `CreateLanguage`, `GetGreetingByLanguage`, and the
+other individual requests are the vertical slices.
+
+## Adding a use case
+
+1. Add one descriptively named slice file to the appropriate capability.
+2. Keep its request and response records, nested FluentValidation validator, handler, SQL, and
+   expected errors together.
+3. Register it in the capability's `*Feature.cs` file.
+4. Add integration tests for its observable outcomes.
+5. Update the feature and API documentation.
+
+Do not add a generic repository or shared service by default. Share platform mechanics, not
+request behavior. See [the architecture guide](docs/architecture.mdx) and the
+[`build-vertical-slice` skill](.github/skills/build-vertical-slice/SKILL.md).
+
+## API
+
+| Capability | Endpoints |
+| --- | --- |
+| Health | `GET /api/health` |
+| Languages | `GET /api/languages`, `GET /api/languages/{id}`, `POST /api/languages`, `PUT /api/languages/{id}`, `DELETE /api/languages/{id}` |
+| Greetings | `GET /api/greetings`, `GET /api/greetings/{id}`, `GET /api/greetings/by-language/{code}`, `POST /api/greetings`, `PUT /api/greetings/{id}`, `DELETE /api/greetings/{id}` |
+
+See [the API reference](docs/api-reference/languages.mdx) for payloads and status codes.
+
+## Local development and verification
+
+Start only the database and migration runner, then run the API:
 
 ```bash
-# Run all tests
-dotnet test
-
-# Run specific test suites
-dotnet test tests/unit/symphony-test-1.UnitTests/
-dotnet test tests/integration/symphony-test-1.IntegrationTests/
-dotnet test tests/e2e/symphony-test-1.E2ETests/
+docker compose up -d postgres flyway
+dotnet run --project src/symphony-test-1.Api
 ```
 
-### Test Coverage
-- **Unit Tests** - Component isolation with mocking
-- **Integration Tests** - Real database operations with Testcontainers
-- **E2E Tests** - Complete API workflows
+Run the quality checks:
 
-## Architecture
+```bash
+dotnet format symphony-test-1.slnx --verify-no-changes
+dotnet build symphony-test-1.slnx --configuration Release
+dotnet test symphony-test-1.slnx --configuration Release --no-build
+dotnet list symphony-test-1.slnx package --vulnerable --include-transitive
+```
 
-This project follows **Vertical Slice Architecture**:
+Docker must be running for integration and end-to-end tests.
 
-- Code is organized by **features** rather than technical layers
-- Each feature is self-contained with its models, repository, and endpoints
-- Reduces coupling between features
-- Makes features easier to find, understand, and modify
+## Design choices
 
-Learn more in the [documentation](docs/architecture.mdx).
+- **No MediatR:** it is a valid dispatch option, not a requirement for VSA. Minimal API delegates
+  keep this sample explicit.
+- **No repositories:** each slice executes the SQL suited to its request.
+- **No shared API models:** similar-looking contracts may evolve independently.
+- **Explicit validation:** handlers invoke their slice-local FluentValidation validators so the
+  Minimal API request flow remains visible and supports asynchronous rules.
+- **Limited shared infrastructure:** the Npgsql data source and application pipeline are genuine
+  platform concerns.
+- **Intentional duplication:** a small repeated mapping is cheaper than coupling unrelated slices.
 
-## Database
-
-- **PostgreSQL 16** with Alpine Linux
-- **UUID primary keys** for distributed systems
-- **Flyway migrations** for version control
-- **Referential integrity** with foreign key constraints
-- **Cascade deletes** for data consistency
-
-## Observability
-
-- **Serilog** - Structured logging with context enrichment
-- **OpenTelemetry** - Distributed tracing for HTTP and database
-- **Health Checks** - Liveness and readiness probes
-
-## CI/CD
-
-GitHub Actions workflow includes:
-- Build and compile
-- Unit tests
-- Integration tests with PostgreSQL service
-- E2E tests in containerized environment
-- Docker image build
-- Container orchestration testing
+The architecture guide explains how slices can evolve toward richer domain patterns when business
+complexity justifies them.
 
 ## Documentation
 
-Full documentation is available in the `docs/` directory:
-- Getting Started Guide
-- Architecture Overview
-- Feature Documentation
-- API Reference
-
-## Contributing
-
-This is a starter kit template. Feel free to:
-- Fork and customize for your needs
-- Add new features following the vertical slice pattern
-- Extend the test suites
-- Improve documentation
+- [Introduction](docs/introduction.mdx)
+- [Quick start](docs/quickstart.mdx)
+- [Architecture](docs/architecture.mdx)
+- [Languages capability](docs/features/languages.mdx)
+- [Greetings capability](docs/features/greetings.mdx)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Licensed under the [Apache License 2.0](LICENSE).
 
-## Acknowledgments
+## Acknowledgment
 
-- **Vertical Slice Architecture** - Inspired by Jimmy Bogard
-- **Minimal APIs** - ASP.NET Core team
-- **Testcontainers** - Testcontainers community
-
----
-
-**Ready to build AI-enabled applications with modern C# practices!**
+The architecture is based on Jimmy Bogard's
+[Vertical Slice Architecture](https://www.jimmybogard.com/vertical-slice-architecture/).

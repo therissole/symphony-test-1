@@ -1,120 +1,25 @@
 ---
-title: Greetings Feature
-description: 'Manage greetings in different languages'
+title: Greetings Capability
+description: 'Independent greeting request slices and language-aware queries'
 ---
 
-# Greetings Feature
+# Greetings Capability
 
-The Greetings feature stores and manages greetings in different languages with support for formal and informal variations.
+`Greetings` contains six request slices:
 
-## Overview
+| Slice | Route | Purpose |
+| --- | --- | --- |
+| `ListGreetings` | `GET /api/greetings` | Return all greetings ordered by text |
+| `GetGreeting` | `GET /api/greetings/{id}` | Return one greeting |
+| `GetGreetingByLanguage` | `GET /api/greetings/by-language/{code}` | Return a purpose-built language view |
+| `CreateGreeting` | `POST /api/greetings` | Validate and create a greeting |
+| `UpdateGreeting` | `PUT /api/greetings/{id}` | Validate and replace greeting fields |
+| `DeleteGreeting` | `DELETE /api/greetings/{id}` | Delete a greeting |
 
-Greetings are language-specific phrases used to welcome or acknowledge someone. The feature provides:
-- Full CRUD operations for greetings
-- Retrieval by language code
-- Support for formal/informal greetings
-- Referential integrity with languages
+## Purpose-built query
 
-## Use Cases
+`GetGreetingByLanguage` executes one tailored join and projects directly into:
 
-- Add greetings for existing languages
-- Update greeting text
-- Retrieve all greetings or filter by language
-- Get a greeting by language code (e.g., "Hello" for "en")
-- Delete greetings
-- Automatic cascade deletion when language is removed
-
-## Data Model
-
-```csharp
-public record Greeting
-{
-    public Guid Id { get; init; }
-    public Guid LanguageId { get; init; }
-    public string GreetingText { get; init; }
-    public bool Formal { get; init; }
-    public DateTime CreatedAt { get; init; }
-    public DateTime UpdatedAt { get; init; }
-}
-```
-
-## Request/Response DTOs
-
-### CreateGreetingRequest
-```csharp
-public record CreateGreetingRequest(
-    Guid LanguageId,
-    string GreetingText,
-    bool Formal
-);
-```
-
-### UpdateGreetingRequest
-```csharp
-public record UpdateGreetingRequest(
-    Guid LanguageId,
-    string GreetingText,
-    bool Formal
-);
-```
-
-### GreetingResponse
-```csharp
-public record GreetingResponse(
-    Guid Id,
-    Guid LanguageId,
-    string GreetingText,
-    bool Formal,
-    DateTime CreatedAt,
-    DateTime UpdatedAt
-);
-```
-
-### GreetingByLanguageResponse
-```csharp
-public record GreetingByLanguageResponse(
-    string Language,
-    string LanguageCode,
-    string GreetingText,
-    bool Formal
-);
-```
-
-## Example Usage
-
-### Create a Greeting
-```bash
-# First, get the language ID
-LANGUAGE_ID=$(curl -s http://localhost:8080/api/languages | jq -r '.[] | select(.code=="fr") | .id')
-
-# Create a greeting for that language
-curl -X POST http://localhost:8080/api/greetings \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"languageId\": \"$LANGUAGE_ID\",
-    \"greetingText\": \"Bonjour\",
-    \"formal\": true
-  }"
-```
-
-Response:
-```json
-{
-  "id": "9ab12c34-5678-90de-f123-456789abcdef",
-  "languageId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "greetingText": "Bonjour",
-  "formal": true,
-  "createdAt": "2024-01-15T11:00:00Z",
-  "updatedAt": "2024-01-15T11:00:00Z"
-}
-```
-
-### Get Greeting by Language
-```bash
-curl http://localhost:8080/api/greetings/by-language/en
-```
-
-Response:
 ```json
 {
   "language": "English",
@@ -124,73 +29,46 @@ Response:
 }
 ```
 
-### Get Greeting by Language (Formal)
-```bash
-curl "http://localhost:8080/api/greetings/by-language/en?formal=true"
-```
+An optional `formal=true|false` query parameter filters the result. Without the parameter, informal
+greetings sort first. This query does not load a generic greeting and then perform a second
+language lookup.
 
-Response:
+## Command contract
+
+Create and update accept:
+
 ```json
 {
-  "language": "English",
-  "languageCode": "en",
-  "greetingText": "Good morning",
+  "languageId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "greetingText": "Bonjour",
   "formal": true
 }
 ```
 
-## Referential Integrity
+`languageId` must be non-empty and reference an existing language. `greetingText` is required and
+limited to 255 characters. A missing language returns a validation problem keyed by `languageId`.
+Create and update define a nested FluentValidation `RequestValidator` and invoke it asynchronously
+before database I/O.
 
-Greetings maintain referential integrity with languages:
+Commands use PostgreSQL `RETURNING` for atomic responses. Every database call carries the HTTP
+request cancellation token.
 
-- **Foreign Key Constraint** - Each greeting must reference a valid language
-- **Cascade Delete** - When a language is deleted, all associated greetings are automatically removed
+## Referential integrity
 
-Example:
+The database owns the relationship:
+
 ```sql
-CONSTRAINT fk_language
-    FOREIGN KEY(language_id)
-    REFERENCES languages(id)
-    ON DELETE CASCADE
+FOREIGN KEY (language_id)
+REFERENCES languages(id)
+ON DELETE CASCADE
 ```
 
-## Implementation Details
+Deleting a language therefore deletes its greetings without cross-slice orchestration code.
 
-### Repository Pattern
-The `GreetingRepository` handles:
-- Complex queries joining greetings and languages
-- Filtering by language code and formality
-- Efficient indexing for fast lookups
+## Tests
 
-### Endpoints
-The feature uses minimal APIs with:
-- Route grouping (`/api/greetings`)
-- Proper HTTP status codes
-- Structured error responses
+Integration tests cover list, get/not-found, formality filtering, create/update, missing-language
+validation, and delete/not-found. End-to-end tests verify the complete language-and-greeting
+workflow and cascade deletion.
 
-### Logging
-Comprehensive logging for all operations:
-```csharp
-logger.LogInformation("Creating greeting for language id {LanguageId}", request.LanguageId);
-logger.LogWarning("No greeting found for language code {LanguageCode}", languageCode);
-```
-
-## Testing
-
-### Unit Tests
-- Constructor validation
-- Parameter validation
-
-### Integration Tests
-- CRUD operations with real database
-- Foreign key constraint validation
-- Query by language code
-
-### E2E Tests
-- Complete greeting workflow
-- Language-greeting relationship
-- Cascade delete behavior
-
-## API Reference
-
-For detailed API documentation, see [Greetings API Reference](/api-reference/greetings).
+See the [Greetings API reference](/api-reference/greetings) for exact status codes.

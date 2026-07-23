@@ -1,0 +1,76 @@
+# Repository Agent Instructions
+
+## Purpose
+
+This repository is an executable reference for request-oriented Vertical Slice Architecture in
+ASP.NET Core. Preserve both its behavior and its teaching value.
+
+## Architecture
+
+- Treat one HTTP request as one slice.
+- Keep each slice in one descriptively named file under
+  `src/symphony-test-1.Api/Features/<Capability>/`.
+- A slice owns its route, request and response records, validation, handler, Dapper SQL, mapping,
+  typed results, and expected failure handling.
+- Register slices in `<Capability>Feature.cs`. Keep `Program.cs` as the composition root.
+- Share platform concerns such as `NpgsqlDataSource`, exception handling, telemetry, and logging
+  under `Infrastructure/` or application startup.
+- Do not add resource-wide repositories, application services, shared persistence entities, or
+  shared API DTOs.
+- MediatR is optional and is not evidence of VSA. Do not add it without a concrete need.
+- Prefer small duplication over coupling unrelated requests. Extract a shared concept only after
+  it has stable cross-cutting meaning.
+
+Use `.github/skills/build-vertical-slice/SKILL.md` for feature work.
+
+## Implementation Standards
+
+- Preserve established routes and success response JSON unless a change is explicitly requested.
+- Use typed Minimal API results and matching OpenAPI metadata.
+- Put request rules in an `internal sealed RequestValidator : AbstractValidator<Request>` nested
+  in the slice. Inject `IValidator<Request>` into the handler, call `ValidateAsync` before I/O,
+  and return RFC 7807 validation problems from `ValidationResult.ToDictionary()`.
+- Override FluentValidation property names when necessary so validation keys match the JSON
+  contract's lower-camel-case names.
+- Catch only exceptions the slice can translate deliberately. Unexpected failures belong to the
+  global Problem Details handler.
+- Use parameterized Dapper SQL and pass `CancellationToken` through `CommandDefinition` and
+  connection opening.
+- Project query results directly into the slice response. Prefer PostgreSQL `RETURNING` for
+  commands that return a representation.
+- Never expose exception, database, connection, or secret details to API clients.
+
+## Tests
+
+- Mirror production capability and slice names under `tests/`.
+- Unit-test slice-local FluentValidation validators directly; do not mock internal layers that do
+  not exist.
+- Integration-test each slice through HTTP against the Testcontainers PostgreSQL database.
+- Use end-to-end tests for workflows spanning multiple slices.
+- Cover success, validation, not-found, conflict, and database-constraint behavior where relevant.
+- Keep tests independent and avoid execution-order assumptions or arbitrary sleeps.
+
+Run:
+
+```bash
+dotnet build symphony-test-1.slnx --configuration Release
+dotnet test symphony-test-1.slnx --configuration Release --no-build
+dotnet list symphony-test-1.slnx package --vulnerable --include-transitive
+```
+
+Docker must be available for integration and end-to-end tests.
+
+## Documentation and Guidance
+
+- Keep `README.md`, `docs/`, `.github/copilot-instructions.md`, custom agents, and repository
+  skills consistent with the source.
+- Describe only behavior verified in the current code and tests.
+- Call a request/use case a slice; call `Languages` and `Greetings` capabilities or feature areas.
+- Update API status-code documentation whenever endpoint behavior changes.
+
+## Safety
+
+- Do not modify `.git/`.
+- Do not commit real credentials. Fixed `postgres/postgres` values are disposable local Docker
+  development credentials only.
+- Do not remove tests or compatibility behavior merely to simplify a refactor.

@@ -1,80 +1,49 @@
-# Repository-Wide Copilot Instructions
+# Copilot Instructions
 
-## Project Overview
-This is a C# AI-enabled SDLC starter kit designed to accelerate development using agentic AI. The repository serves as a foundation for C# applications with best practices for AI-assisted development.
+This is a .NET 10 reference implementation of request-oriented Vertical Slice Architecture using
+ASP.NET Core Minimal APIs, PostgreSQL, Dapper, NUnit, and Testcontainers.
 
-## Technology Stack
-- **Language**: C# (.NET)
-- **Target Framework**: .NET 8.0 (or latest LTS)
-- **Build System**: MSBuild / dotnet CLI
-- **Testing Framework**: xUnit (recommended) or NUnit
-- **Package Manager**: NuGet
+## Non-negotiable architecture
 
-## Development Guidelines
+- One HTTP request/use case is one vertical slice.
+- Place slices in `src/symphony-test-1.Api/Features/<Capability>/<UseCase>.cs`.
+- Keep route mapping, request/response records, validation, handler, tailored SQL, result mapping,
+  and expected errors in that slice.
+- Register the slice in `<Capability>Feature.cs`.
+- Do not create CRUD repositories, generic repositories, application services, shared persistence
+  models, or shared DTO files.
+- Do not add MediatR just to dispatch handlers. VSA does not require it.
+- Share platform mechanics only: database data source, exception handling, telemetry, and logging.
 
-### Code Style and Conventions
-- Follow C# coding conventions as outlined in Microsoft's official guidelines
-- Use PascalCase for class names, method names, and public members
-- Use camelCase for local variables and private fields (with underscore prefix `_` for private fields)
-- Use meaningful, descriptive names for all identifiers
-- Add XML documentation comments for all public APIs
-- Keep methods focused and small (single responsibility principle)
-- Use `async`/`await` for asynchronous operations
-- Prefer `var` when the type is obvious from the right side
+Load `.github/skills/build-vertical-slice/SKILL.md` when adding, changing, reviewing, or refactoring
+an endpoint.
 
-### Code Quality
-- Write unit tests for all new functionality
-- Maintain test coverage above 80%
-- Ensure all tests pass before committing
-- Use dependency injection where appropriate
-- Follow SOLID principles
-- Handle exceptions appropriately with meaningful error messages
-- Avoid using `null` when possible; prefer nullable reference types
+## Code conventions
 
-### Project Structure
-- Place source code in `src/` directory
-- Place tests in `tests/` or `test/` directory
-- Use feature-based or layer-based folder organization
-- Keep configuration files in the root directory
+- Preserve public HTTP contracts unless the task explicitly changes them.
+- Use typed Minimal API results with accurate OpenAPI metadata.
+- Define request rules in a nested internal FluentValidation `RequestValidator`, inject
+  `IValidator<Request>` into the handler, and invoke `ValidateAsync` before I/O.
+- Return validation problems using `ValidationResult.ToDictionary()`, preserving the JSON
+  contract's lower-camel-case error keys, and use Problem Details for global failures.
+- Catch specific PostgreSQL constraint errors only; never broadly catch and return `400`.
+- Use `NpgsqlDataSource`, parameterized Dapper `CommandDefinition`, and cancellation tokens.
+- Project queries directly to slice responses and use `RETURNING` for atomic command responses.
+- Prefer deliberate local duplication to cross-slice coupling.
 
-### Build and Test Commands
-```bash
-# Restore dependencies
-dotnet restore
+## Testing
 
-# Build the project
-dotnet build
+- Mirror capability/slice names under `tests/`.
+- Unit-test nested request validators or deterministic domain rules directly.
+- Integration-test slice behavior through HTTP with Testcontainers PostgreSQL.
+- Reserve end-to-end tests for multi-slice workflows.
+- Test relevant success, validation, conflict, not-found, and constraint paths.
 
-# Run tests
-dotnet test
-
-# Run with specific configuration
-dotnet build --configuration Release
-dotnet test --configuration Release
-```
-
-### Security Guidelines
-- Never commit secrets, API keys, or passwords
-- Use environment variables or secure key vaults for sensitive data
-- Regularly update dependencies to patch security vulnerabilities
-- Validate and sanitize all user inputs
-- Use parameterized queries to prevent SQL injection
-
-### Git Workflow
-- Create feature branches from `main`
-- Use descriptive commit messages
-- Keep commits atomic and focused
-- Squash commits before merging when appropriate
-
-## AI Agent Boundaries
-- Never modify `.git/` directory or git configuration
-- Never commit sensitive information (secrets, keys, passwords)
-- Always run tests after making code changes
-- Preserve existing functionality unless explicitly asked to change it
-- Follow the minimal change principle - make the smallest possible changes to achieve the goal
+Before completion, run a warning-free solution build, all tests with Docker available, formatting,
+and `dotnet list ... package --vulnerable --include-transitive`.
 
 ## Documentation
-- Update README.md when adding significant features
-- Maintain inline code comments for complex logic
-- Keep XML documentation comments up to date
-- Document breaking changes in commit messages
+
+Keep README, Mintlify docs, API reference, custom agents, and skills synchronized with source.
+Describe `Languages` and `Greetings` as capabilities; the individual requests inside them are the
+slices. Never document aspirational or unused features as implemented.

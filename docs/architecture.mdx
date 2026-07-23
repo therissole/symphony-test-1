@@ -1,194 +1,200 @@
 ---
 title: Architecture
-description: 'Understanding the Vertical Slice Architecture'
+description: 'Request-oriented Vertical Slice Architecture conventions and trade-offs'
 ---
 
-# Architecture Overview
+# Architecture
 
-This starter kit uses **Vertical Slice Architecture**, a pattern popularized by Jimmy Bogard that organizes code by features rather than technical layers.
+This reference follows Jimmy Bogard's definition of Vertical Slice Architecture: treat each
+request as a distinct use case, group its concerns front-to-back, minimize coupling between slices,
+and maximize cohesion inside a slice.
 
-## Why Vertical Slice Architecture?
+## The unit of architecture
 
-Traditional layered architecture (Controller → Service → Repository) can lead to:
-- Code scattered across multiple folders for a single feature
-- Tight coupling between layers
-- Difficulty in understanding feature boundaries
-- Challenges when features need different patterns
+A capability is not automatically a slice:
 
-Vertical Slice Architecture solves these by:
-- **Grouping related code together** - All code for a feature lives in one place
-- **Reducing coupling** - Features are independent and can evolve separately
-- **Improving discoverability** - Easy to find all code related to a feature
-- **Enabling flexibility** - Each feature can use the patterns that suit it best
-
-## Project Structure
-
-```
-src/
-  symphony-test-1.Api/
-    Features/
-      Languages/           # Language feature slice
-        Language.cs        # Models and DTOs
-        LanguageRepository.cs
-        LanguageEndpoints.cs
-      Greetings/          # Greeting feature slice
-        Greeting.cs
-        GreetingRepository.cs
-        GreetingEndpoints.cs
-      Health/             # Health check feature
-        HealthEndpoints.cs
-    Infrastructure/       # Shared infrastructure
-      IDbConnectionFactory.cs
-    Program.cs
-
-tests/
-  unit/                   # Unit tests
-  integration/            # Integration tests
-  e2e/                    # End-to-end tests
-
-db/
-  migrations/             # Flyway database migrations
+```text
+Languages                         capability
+├── ListLanguages.cs              query slice
+├── GetLanguage.cs                query slice
+├── CreateLanguage.cs             command slice
+├── UpdateLanguage.cs             command slice
+└── DeleteLanguage.cs             command slice
 ```
 
-## Feature Structure
+Every request file owns:
 
-Each feature slice typically contains:
+1. Route and OpenAPI metadata
+2. Request-specific input and output records
+3. A slice-local FluentValidation validator when the request has rules
+4. Handler flow
+5. Tailored parameterized SQL
+6. Projection into the response
+7. Expected failure translation
 
-1. **Models** - Domain models and DTOs
-2. **Repository** - Data access logic using Dapper
-3. **Endpoints** - Minimal API endpoints
+The feature registration file only composes the capability's routes.
 
-### Example: Languages Feature
+## Request flow
 
-```csharp
-// Language.cs - Models
-public record Language { ... }
-public record CreateLanguageRequest(...);
-public record LanguageResponse(...);
-
-// LanguageRepository.cs - Data Access
-public interface ILanguageRepository { ... }
-public class LanguageRepository : ILanguageRepository { ... }
-
-// LanguageEndpoints.cs - API Endpoints
-public static class LanguageEndpoints
-{
-    public static RouteGroupBuilder MapLanguageEndpoints(this RouteGroupBuilder group)
-    {
-        group.MapGet("/", GetAllLanguages);
-        group.MapPost("/", CreateLanguage);
-        // ...
-    }
-}
+```mermaid
+flowchart LR
+    Client["HTTP client"] --> Pipeline["ASP.NET Core pipeline"]
+    Pipeline --> Slice["One request slice"]
+    Slice --> Validation{"Input valid?"}
+    Validation -->|No| ValidationProblem["400 Validation Problem"]
+    Validation -->|Yes| Database["Npgsql + request-specific Dapper SQL"]
+    Database --> Result["Typed HTTP result"]
+    Slice -. unexpected failure .-> ProblemDetails["Global Problem Details"]
 ```
 
-## Technology Stack
+There is no application-wide service or repository gate. A query can use a purpose-built join while
+a command can use `INSERT ... RETURNING`. Each slice chooses the simplest pattern that fulfills its
+request.
 
-### Core Technologies
-- **ASP.NET Core** - Web framework with minimal APIs
-- **PostgreSQL** - Database
-- **Dapper** - Micro-ORM for data access
-- **Flyway** - Database migrations
+## Project structure
 
-### Observability
-- **Serilog** - Structured logging
-- **OpenTelemetry** - Distributed tracing
-- **Health Checks** - Monitoring application health
-
-### Testing
-- **NUnit** - Test framework
-- **Testcontainers** - Integration testing with real databases
-- **WebApplicationFactory** - API testing
-
-### DevOps
-- **Docker** - Containerization
-- **GitHub Actions** - CI/CD pipeline
-- **Mintlify** - Documentation
-
-## Database Design
-
-The database uses:
-- **UUID primary keys** - For distributed systems and security
-- **Referential integrity** - Foreign key constraints with CASCADE deletes
-- **Timestamps** - created_at and updated_at for auditing
-
-### Schema
-
-```sql
--- Languages table
-CREATE TABLE languages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(100) NOT NULL UNIQUE,
-    code VARCHAR(10) NOT NULL UNIQUE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- Greetings table with FK to languages
-CREATE TABLE greetings (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    language_id UUID NOT NULL,
-    greeting_text VARCHAR(255) NOT NULL,
-    formal BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_language
-        FOREIGN KEY(language_id)
-        REFERENCES languages(id)
-        ON DELETE CASCADE
-);
+```text
+src/symphony-test-1.Api/
+├── Features/
+│   ├── Languages/
+│   │   ├── LanguagesFeature.cs
+│   │   ├── ListLanguages.cs
+│   │   ├── GetLanguage.cs
+│   │   ├── CreateLanguage.cs
+│   │   ├── UpdateLanguage.cs
+│   │   └── DeleteLanguage.cs
+│   ├── Greetings/
+│   │   ├── GreetingsFeature.cs
+│   │   ├── ListGreetings.cs
+│   │   ├── GetGreeting.cs
+│   │   ├── GetGreetingByLanguage.cs
+│   │   ├── CreateGreeting.cs
+│   │   ├── UpdateGreeting.cs
+│   │   └── DeleteGreeting.cs
+│   └── Health/
+│       ├── HealthFeature.cs
+│       └── GetHealth.cs
+├── Infrastructure/
+│   └── Database.cs
+└── Program.cs
 ```
 
-## Testing Strategy
+## Anatomy of a slice
 
-The application includes three levels of testing:
+`CreateLanguage.cs` contains nested `Request` and `Response` records, an internal
+`RequestValidator : AbstractValidator<Request>`, a `Map` method, and the handler. The handler:
 
-### Unit Tests
-- Test individual components in isolation
-- Use mocking for dependencies
-- Fast execution
+1. Receives `IValidator<Request>` from dependency injection and calls `ValidateAsync` before
+   opening a connection.
+2. Opens a connection from the shared `NpgsqlDataSource`.
+3. Executes parameterized SQL with a cancellation-aware `CommandDefinition`.
+4. Uses PostgreSQL `RETURNING` to produce the response atomically.
+5. Maps only the expected unique constraint violation to `409 Conflict`.
+6. Lets unexpected exceptions reach centralized exception handling.
 
-### Integration Tests
-- Test feature slices with real database (Testcontainers)
-- Verify data persistence and retrieval
-- Test repository implementations
+Keeping these decisions together makes the use case understandable and changeable in one place.
 
-### E2E Tests
-- Test complete workflows through HTTP API
-- Verify referential integrity
-- Test realistic user scenarios
+## What is shared
 
-## Logging and Observability
+Shared code is intentionally small:
 
-### Structured Logging with Serilog
-All handlers include appropriate logging:
-```csharp
-logger.LogInformation("Creating language with code {LanguageCode}", request.Code);
+| Shared concern | Why it is shared |
+| --- | --- |
+| `NpgsqlDataSource` registration | Connection pooling and lifetime are platform mechanics |
+| Global Problem Details | Unexpected failures need one safe response policy |
+| Serilog request logging | Applies uniformly to the HTTP pipeline |
+| OpenTelemetry setup | Captures platform-level request and database spans |
+| FluentValidation registration | Discovers internal validators while rules remain inside slices |
+| Capability route registration | Composes slices without owning their behavior |
+
+Database migrations remain centralized because the sample uses one relational schema. A larger
+modular system could own migrations per module without changing the slice design.
+
+## What is not shared
+
+The project deliberately avoids:
+
+- Resource-wide repositories
+- Generic repositories
+- Application-wide CRUD services
+- Shared persistence entities used as API contracts
+- One request/response model reused across unrelated operations
+- Broad exception catching inside slices
+- A mandatory handler dispatch library
+
+Small mapping or validation duplication is acceptable when it prevents two requests from becoming
+coupled. Extract a shared concept only when it has stable meaning beyond coincidentally similar
+code.
+
+## MediatR and CQRS
+
+The read and write use cases naturally have different models and SQL, which provides practical
+command/query separation. MediatR is not required to achieve this. This reference uses direct
+Minimal API delegates so the request flow remains visible.
+
+MediatR can be introduced when its dispatch or pipeline behavior solves a demonstrated problem. It
+should not be added merely as an architectural badge.
+
+## Validation and errors
+
+- Command request rules use FluentValidation's strongly typed fluent API.
+- Each validator is nested in its owning slice rather than placed in a parallel validation layer
+  or a separate file.
+- Validators are registered by assembly scanning, injected as `IValidator<Request>`, and invoked
+  explicitly with the request cancellation token.
+- Error property names are overridden where necessary to preserve lower-camel-case JSON contract
+  keys such as `languageId` and `greetingText`.
+- Invalid input returns `application/problem+json` validation details.
+- Missing resources return `404 Not Found`.
+- Language uniqueness violations return `409 Conflict`.
+- Greeting foreign-key violations return a `400` validation problem on `languageId`.
+- Unexpected exceptions are logged and rendered safely by global Problem Details.
+- Health failures return `503` without exposing connection or exception details.
+
+OpenAPI metadata on each slice declares the same result set implemented by the handler.
+
+## Transactions and domain logic
+
+The sample's commands each require one SQL statement, so they do not need explicit transactions.
+When a use case requires multiple atomic writes, its slice should own the transaction boundary.
+
+Start with a transaction script. If business rules become complex, refactor that slice toward the
+appropriate domain model or service. Do not impose one domain pattern on every request.
+
+## Testing aligned to architecture
+
+```text
+tests/unit/Features/             deterministic slice rules
+tests/integration/Features/      every slice through HTTP and PostgreSQL
+tests/e2e/Features/              workflows crossing slices
 ```
 
-### OpenTelemetry Tracing
-Automatic instrumentation for:
-- HTTP requests/responses
-- Database queries
-- External service calls
+Integration tests are the primary proof because most slices coordinate HTTP binding, validation,
+SQL, PostgreSQL constraints, and response mapping. Unit tests are reserved for deterministic logic;
+they do not mock nonexistent service and repository layers.
 
-## Feature Flags
+The migration harness applies all ordered `V*.sql` files, so adding a migration does not require
+editing test infrastructure.
 
-Microsoft Feature Management is integrated for:
-- Gradual feature rollout
-- A/B testing
-- Emergency feature toggles
+## Adding a slice
 
-Add flags in `appsettings.json`:
-```json
-{
-  "FeatureManagement": {
-    "NewFeature": true
-  }
-}
-```
+1. Name the use case in command/query language, such as `SearchGreetings` or `ArchiveLanguage`.
+2. Add one file under the owning capability.
+3. Define only the contract that request needs.
+4. Add a nested `RequestValidator` when needed and implement the simplest appropriate SQL.
+5. Carry cancellation through every I/O call.
+6. Return typed results and accurate OpenAPI metadata.
+7. Register the slice in the capability feature file.
+8. Add tests for success and relevant failure outcomes.
+9. Update feature and API documentation.
+10. Run formatting, build, all tests, and the dependency audit.
 
-## Next Steps
+The repository skill at `.github/skills/build-vertical-slice/SKILL.md` gives agents the same
+workflow.
 
-- Explore the [Languages Feature](/features/languages)
-- Check the [API Reference](/api-reference/languages)
+## References
+
+- [Jimmy Bogard: Vertical Slice Architecture](https://www.jimmybogard.com/vertical-slice-architecture/)
+- [Jimmy Bogard: Contoso University sample](https://github.com/jbogard/ContosoUniversityDotNetCore)
+- [FluentValidation with ASP.NET Core Minimal APIs](https://docs.fluentvalidation.net/en/latest/aspnet.html#minimal-apis)
+- [SSW Vertical Slice Architecture validator example](https://github.com/SSWConsulting/SSW.VerticalSliceArchitecture/blob/main/src/WebApi/Features/Heroes/CreateHero/CreateHeroRequestValidator.cs)

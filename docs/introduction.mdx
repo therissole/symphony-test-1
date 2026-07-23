@@ -1,65 +1,53 @@
 ---
 title: Introduction
-description: 'Welcome to the C# AI-Enabled SDLC Starter Kit'
+description: 'An executable .NET reference for request-oriented Vertical Slice Architecture'
 ---
 
-# C# AI-Enabled SDLC Starter Kit
+# Vertical Slice Architecture Reference
 
-A comprehensive starter project for C# applications that demonstrates best practices for modern software development with AI-assisted workflows.
+This repository demonstrates Vertical Slice Architecture (VSA) with ASP.NET Core Minimal APIs,
+PostgreSQL, and Dapper.
 
-## Features
+The central rule is simple: **one request is one use case and one slice**. A slice owns everything
+needed to fulfill that request:
 
-This starter kit includes:
+- Route and OpenAPI metadata
+- Request and response contracts
+- Input validation
+- Handler and expected error mapping
+- Request-specific SQL and result projection
+- Focused tests
 
-- **RESTful API** - Built with ASP.NET Core minimal APIs
-- **Vertical Slice Architecture** - Following Jimmy Bogard's principles for maintainable code organization
-- **PostgreSQL Database** - Enterprise-grade relational database
-- **Flyway Migrations** - Automated database schema management
-- **Dapper** - Lightweight ORM for data access
-- **Comprehensive Testing** - Unit, integration, and E2E tests using NUnit
-- **Docker Support** - Containerized deployment with docker-compose
-- **OpenTelemetry** - Distributed tracing and observability
-- **Serilog** - Structured logging
-- **Health Checks** - Database connectivity monitoring
-- **Feature Flags** - Microsoft Feature Management
-- **CI/CD Pipeline** - GitHub Actions workflow with automated testing
+`Languages` and `Greetings` are capability folders containing multiple slices. They are not
+themselves single vertical slices.
 
-## Quick Start
+## Why this structure
 
-Get started with the starter kit in just a few steps:
+Traditional layers often make a small use-case change cross a controller, service, repository, and
+shared model. This reference couples code along the axis of change instead. Changing
+`GetGreetingByLanguage` should not require changing `CreateGreeting` or a shared CRUD repository.
 
-```bash
-# Clone the repository
-git clone https://github.com/therissole/symphony-test-1.git
-cd symphony-test-1
+The sample deliberately uses:
 
-# Start the application with Docker
-docker-compose up
+- Direct Minimal API handlers rather than MediatR
+- Request-specific Dapper SQL rather than repositories
+- Typed HTTP results and RFC 7807 Problem Details
+- Real PostgreSQL integration tests through Testcontainers
+- Shared infrastructure only for genuine platform mechanics
 
-# The API will be available at http://localhost:8080
-```
+These are implementation choices, not universal VSA requirements. The architectural requirement is
+request-level cohesion and independence.
 
-Visit the [Quick Start](/quickstart) guide for detailed instructions.
-
-## Architecture
-
-The application follows **Vertical Slice Architecture**, organizing code by features rather than technical layers. Each feature is self-contained with its own:
-
-- Models
-- Repository
-- Endpoints
-- Tests
-
-Learn more in the [Architecture](/architecture) documentation.
-
-## Sample Features
-
-The starter kit includes two sample features to demonstrate the architecture:
+## Sample capabilities
 
 ### Languages
-Manage a catalog of languages with CRUD operations.
+
+Five independent slices manage a language catalog: list, get, create, update, and delete.
 
 ### Greetings
-Store and retrieve greetings in different languages with referential integrity.
 
-See the [Features](/features/languages) section for more details.
+Six independent slices manage greetings, including a purpose-built query by language code and
+formality.
+
+Continue with the [Quick Start](/quickstart), then read the [Architecture](/architecture) guide
+before adding a use case.

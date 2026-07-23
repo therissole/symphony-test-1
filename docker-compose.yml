@@ -1,15 +1,14 @@
 services:
   postgres:
     image: postgres:18-alpine
-    container_name: symphony-test-1-postgres
     environment:
       POSTGRES_DB: symphony_test_1
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "${SYMPHONY_POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -17,8 +16,7 @@ services:
       retries: 5
 
   flyway:
-    image: flyway/flyway:latest
-    container_name: symphony-test-1-flyway
+    image: flyway/flyway:13.0.0-alpine
     command: migrate
     volumes:
       - ./db/migrations:/flyway/sql
@@ -35,9 +33,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: symphony-test-1-api
     ports:
-      - "8080:8080"
+      - "${SYMPHONY_API_PORT:-8080}:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080

@@ -1,4 +1,4 @@
-using Microsoft.FeatureManagement;
+using FluentValidation;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
@@ -18,13 +18,15 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// Add services to the container
 builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+    };
+});
 
-// Add Feature Management
-builder.Services.AddFeatureManagement();
-
-// Add OpenTelemetry
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracerProviderBuilder =>
     {
@@ -32,29 +34,24 @@ builder.Services.AddOpenTelemetry()
             .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("SymphonyTest1.Api"))
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
+            .AddSource("Npgsql")
             .AddConsoleExporter();
     });
 
-// Add Database Connection Factory
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? "Host=localhost;Database=symphony_test_1;Username=postgres;Password=postgres";
-builder.Services.AddSingleton<IDbConnectionFactory>(new NpgsqlConnectionFactory(connectionString));
-
-// Add repositories
-builder.Services.AddScoped<ILanguageRepository, LanguageRepository>();
-builder.Services.AddScoped<IGreetingRepository, GreetingRepository>();
+builder.Services.AddDatabase(builder.Configuration);
+builder.Services.AddValidatorsFromAssemblyContaining<Program>(includeInternalTypes: true);
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
+app.UseExceptionHandler();
+app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 
-// Map feature endpoints using vertical slice architecture
 app.MapGroup("/api/health")
     .MapHealthEndpoints();
 
@@ -66,6 +63,5 @@ app.MapGroup("/api/greetings")
 
 app.Run();
 
-// Make Program class accessible to tests
 public partial class Program { }
 

@@ -1,204 +1,122 @@
 ---
 title: Languages API
-description: 'CRUD operations for languages'
+description: 'Language request and response contracts'
 ---
 
 # Languages API
 
-Manage languages in the system with full CRUD operations.
-
-## GET /api/languages
-
-Retrieve all languages.
-
-### Response
-
-Returns an array of language objects.
-
-### Example Response
-
-```json
-[
-  {
-    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    "name": "English",
-    "code": "en",
-    "createdAt": "2024-01-15T10:00:00Z",
-    "updatedAt": "2024-01-15T10:00:00Z"
-  },
-  {
-    "id": "7fb12a51-8934-4a12-9d5f-1f876c59e421",
-    "name": "Spanish",
-    "code": "es",
-    "createdAt": "2024-01-15T10:15:00Z",
-    "updatedAt": "2024-01-15T10:15:00Z"
-  }
-]
-```
-
-### Example Request
-
-```bash
-curl http://localhost:8080/api/languages
-```
-
----
-
-## GET /api/languages/{id}
-
-Retrieve a specific language by ID.
-
-### Path Parameters
-
-<ParamField path="id" type="string" required>
-  UUID of the language
-</ParamField>
-
-### Response
-
-Returns a single language object.
-
-### Example Response
+## Language response
 
 ```json
 {
   "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "name": "English",
   "code": "en",
-  "createdAt": "2024-01-15T10:00:00Z",
-  "updatedAt": "2024-01-15T10:00:00Z"
+  "createdAt": "2026-07-23T10:00:00Z",
+  "updatedAt": "2026-07-23T10:00:00Z"
 }
 ```
 
-### Status Codes
+## GET /api/languages
 
-- `200 OK` - Language found
-- `404 Not Found` - Language not found
+Returns all languages ordered by name.
 
-### Example Request
+**Responses**
+
+- `200 OK` — array of language responses
+
+```bash
+curl http://localhost:8080/api/languages
+```
+
+## GET /api/languages/{id}
+
+<ParamField path="id" type="string" required>
+  Language UUID.
+</ParamField>
+
+**Responses**
+
+- `200 OK` — language response
+- `404 Not Found` — no language has the supplied ID
 
 ```bash
 curl http://localhost:8080/api/languages/3fa85f64-5717-4562-b3fc-2c963f66afa6
 ```
 
----
-
 ## POST /api/languages
 
-Create a new language.
-
-### Request Body
-
 <ParamField body="name" type="string" required>
-  Human-readable name of the language (e.g., "French")
+  Unique language name, at most 100 characters.
 </ParamField>
 
 <ParamField body="code" type="string" required>
-  ISO language code (e.g., "fr")
+  Unique language code, at most 10 characters.
 </ParamField>
-
-### Example Request
 
 ```bash
 curl -X POST http://localhost:8080/api/languages \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "French",
-    "code": "fr"
-  }'
+  -d '{"name":"French","code":"fr"}'
 ```
 
-### Response
+**Responses**
 
-Returns the created language object.
-
-### Example Response
-
-```json
-{
-  "id": "9ab12c34-5678-90de-f123-456789abcdef",
-  "name": "French",
-  "code": "fr",
-  "createdAt": "2024-01-15T11:00:00Z",
-  "updatedAt": "2024-01-15T11:00:00Z"
-}
-```
-
-### Status Codes
-
-- `201 Created` - Language created successfully
-- `400 Bad Request` - Invalid request (missing fields or duplicate code)
-
----
+- `201 Created` — created language; `Location` identifies its GET resource
+- `400 Bad Request` — RFC 7807 validation problem
+- `409 Conflict` — name or code already exists
 
 ## PUT /api/languages/{id}
 
-Update an existing language.
-
-### Path Parameters
-
-<ParamField path="id" type="string" required>
-  UUID of the language to update
-</ParamField>
-
-### Request Body
-
-<ParamField body="name" type="string" required>
-  Updated name of the language
-</ParamField>
-
-<ParamField body="code" type="string" required>
-  Updated language code
-</ParamField>
-
-### Example Request
+Replaces the editable name and code fields using the same validation rules as create.
 
 ```bash
 curl -X PUT http://localhost:8080/api/languages/3fa85f64-5717-4562-b3fc-2c963f66afa6 \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "English (US)",
-    "code": "en"
-  }'
+  -d '{"name":"English (US)","code":"en-US"}'
 ```
 
-### Response
+**Responses**
 
-Returns the updated language object.
-
-### Status Codes
-
-- `200 OK` - Language updated successfully
-- `404 Not Found` - Language not found
-- `400 Bad Request` - Invalid request
-
----
+- `200 OK` — updated language
+- `400 Bad Request` — RFC 7807 validation problem
+- `404 Not Found` — language does not exist
+- `409 Conflict` — name or code belongs to another language
 
 ## DELETE /api/languages/{id}
 
-Delete a language.
+Deletes the language. The database cascades the delete to associated greetings.
 
-<Warning>
-  Deleting a language will cascade delete all associated greetings.
-</Warning>
+**Responses**
 
-### Path Parameters
+- `204 No Content` — language deleted
+- `404 Not Found` — language does not exist
 
-<ParamField path="id" type="string" required>
-  UUID of the language to delete
-</ParamField>
+## Error formats
 
-### Example Request
+Validation errors use `application/problem+json`:
 
-```bash
-curl -X DELETE http://localhost:8080/api/languages/3fa85f64-5717-4562-b3fc-2c963f66afa6
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "One or more validation errors occurred.",
+  "status": 400,
+  "errors": {
+    "name": ["Name is required."],
+    "code": ["Code is required."]
+  }
+}
 ```
 
-### Response
+A uniqueness conflict uses:
 
-No content returned on success.
+```json
+{
+  "title": "Language already exists",
+  "status": 409,
+  "detail": "A language with the same name or code already exists."
+}
+```
 
-### Status Codes
-
-- `204 No Content` - Language deleted successfully
-- `404 Not Found` - Language not found
+Unexpected failures are rendered by the application's global Problem Details handler and include a
+request `traceId`, not internal exception details.

@@ -1,106 +1,91 @@
 ---
 title: Quick Start
-description: 'Get started with the C# AI-Enabled SDLC Starter Kit'
+description: 'Run and verify the Vertical Slice Architecture reference'
 ---
 
-# Quick Start Guide
-
-This guide will help you get the application running locally in just a few minutes.
+# Quick Start
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
+- [Docker](https://www.docker.com/get-started) with Docker Compose
+- [.NET 10 SDK](https://dotnet.microsoft.com/download) for local development
+- Git
 
-- [Docker](https://www.docker.com/get-started) and Docker Compose
-- [.NET 9 SDK](https://dotnet.microsoft.com/download) (for local development)
-- [Git](https://git-scm.com/)
-
-## Running with Docker
-
-The easiest way to get started is using Docker Compose:
+## Run the complete environment
 
 ```bash
-# Clone the repository
 git clone https://github.com/therissole/symphony-test-1.git
 cd symphony-test-1
-
-# Start all services
-docker-compose up -d
-
-# Wait for services to start (about 30 seconds)
-# Check the API health
-curl http://localhost:8080/api/health
+docker compose up --build -d
+docker compose ps
 ```
 
-This will start:
-- PostgreSQL database on port 5432
-- Flyway migration runner (runs once)
-- API application on port 8080
+Docker Compose starts:
 
-## Exploring the API
+- PostgreSQL 18 on port `5432`
+- Flyway 13, which applies migrations once
+- The API on port `8080`
 
-Once running, you can explore the API:
+Check the application:
 
-### Health Check
 ```bash
 curl http://localhost:8080/api/health
-```
-
-### List all languages
-```bash
 curl http://localhost:8080/api/languages
+curl "http://localhost:8080/api/greetings/by-language/en?formal=true"
 ```
 
-### Get a greeting
-```bash
-curl http://localhost:8080/api/greetings/by-language/en
+The Development OpenAPI document is available at:
+
+```text
+http://localhost:8080/openapi/v1.json
 ```
 
-### OpenAPI/Swagger (Development mode)
-Visit: http://localhost:8080/openapi/v1.json
+To avoid host port collisions, set `SYMPHONY_API_PORT` or `SYMPHONY_POSTGRES_PORT` before
+starting Compose. Their defaults are `8080` and `5432`.
 
-## Running Locally for Development
-
-For local development without Docker:
+To stop the environment and delete its local database volume:
 
 ```bash
-# Start PostgreSQL (with Docker)
-docker run -d \
-  --name postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=symphony_test_1 \
-  -p 5432:5432 \
-  postgres:16-alpine
-
-# Run Flyway migrations
-docker run --rm \
-  --network host \
-  -v $(pwd)/db/migrations:/flyway/sql \
-  flyway/flyway:10-alpine \
-  -url=jdbc:postgresql://localhost:5432/symphony_test_1 \
-  -user=postgres \
-  -password=postgres \
-  migrate
-
-# Run the application
-cd src/symphony-test-1.Api
-dotnet run
+docker compose down -v
 ```
 
-## Running Tests
+## Run the API from the SDK
+
+Use Docker only for PostgreSQL and migrations:
 
 ```bash
-# Run all tests
-dotnet test
+docker compose up -d postgres flyway
+dotnet run --project src/symphony-test-1.Api
+```
 
-# Run specific test project
+The Development connection string targets `localhost:5432`. Docker Compose overrides it with the
+internal `postgres` host when the API runs in a container.
+
+## Run tests
+
+Docker must be running because integration and end-to-end tests create isolated PostgreSQL
+containers.
+
+```bash
+dotnet test symphony-test-1.slnx
+```
+
+Run suites individually:
+
+```bash
 dotnet test tests/unit/symphony-test-1.UnitTests/symphony-test-1.UnitTests.csproj
 dotnet test tests/integration/symphony-test-1.IntegrationTests/symphony-test-1.IntegrationTests.csproj
 dotnet test tests/e2e/symphony-test-1.E2ETests/symphony-test-1.E2ETests.csproj
 ```
 
-## Next Steps
+## Verify reference quality
 
-- Read about the [Architecture](/architecture)
-- Explore the [Languages Feature](/features/languages)
-- Check out the [API Reference](/api-reference/languages)
+```bash
+dotnet format symphony-test-1.slnx --verify-no-changes
+dotnet build symphony-test-1.slnx --configuration Release
+dotnet test symphony-test-1.slnx --configuration Release --no-build
+dotnet list symphony-test-1.slnx package --vulnerable --include-transitive
+```
+
+Next, read [Architecture](/architecture) and inspect
+`src/symphony-test-1.Api/Features/Languages/CreateLanguage.cs`.

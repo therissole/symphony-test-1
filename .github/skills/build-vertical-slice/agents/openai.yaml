@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Vertical Slices"
+  short_description: "Implement request-owned .NET vertical slices"
+  default_prompt: "Use $build-vertical-slice to add or refactor an API use case in this repository."

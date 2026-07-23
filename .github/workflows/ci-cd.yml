@@ -15,21 +15,6 @@ jobs:
       checks: write
       pull-requests: write
     
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: symphony_test_1_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
     - uses: actions/checkout@v4
     
@@ -43,19 +28,21 @@ jobs:
     
     - name: Build
       run: dotnet build --no-restore --configuration Release
+
+    - name: Verify formatting
+      run: dotnet format symphony-test-1.slnx --verify-no-changes --no-restore
+
+    - name: Audit vulnerable packages
+      run: dotnet list symphony-test-1.slnx package --vulnerable --include-transitive --no-restore
     
     - name: Run Unit Tests
       run: dotnet test tests/unit/symphony-test-1.UnitTests/symphony-test-1.UnitTests.csproj --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=unit-test-results.trx"
     
     - name: Run Integration Tests
       run: dotnet test tests/integration/symphony-test-1.IntegrationTests/symphony-test-1.IntegrationTests.csproj --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=integration-test-results.trx"
-      env:
-        ConnectionStrings__DefaultConnection: "Host=localhost;Database=symphony_test_1_test;Username=postgres;Password=postgres"
     
     - name: Run E2E Tests
       run: dotnet test tests/e2e/symphony-test-1.E2ETests/symphony-test-1.E2ETests.csproj --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=e2e-test-results.trx"
-      env:
-        ConnectionStrings__DefaultConnection: "Host=localhost;Database=symphony_test_1_test;Username=postgres;Password=postgres"
     
     - name: Publish test results
       uses: EnricoMi/publish-unit-test-result-action@v2
@@ -80,10 +67,8 @@ jobs:
     - name: Build Docker image
       run: docker build -t symphony-test-1-api:latest .
     
-    - name: Start services with docker-compose
-      run: |
-        docker compose up -d
-        sleep 30
+    - name: Start services
+      run: docker compose up --build --wait
     
     - name: Check API health
       run: |
