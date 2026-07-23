@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/symphony-test-1.Api/symphony-test-1.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/e2e/">
+    <Project Path="tests/e2e/symphony-test-1.E2ETests/symphony-test-1.E2ETests.csproj" />
+  </Folder>
+  <Folder Name="/tests/integration/">
+    <Project Path="tests/integration/symphony-test-1.IntegrationTests/symphony-test-1.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/tests/unit/">
+    <Project Path="tests/unit/symphony-test-1.UnitTests/symphony-test-1.UnitTests.csproj" />
+  </Folder>
+</Solution>

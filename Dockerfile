@@ -2,16 +2,16 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy csproj and restore dependencies
-COPY ["src/StarterKit.Api/StarterKit.Api.csproj", "src/StarterKit.Api/"]
-RUN dotnet restore "src/StarterKit.Api/StarterKit.Api.csproj"
+COPY ["src/symphony-test-1.Api/symphony-test-1.Api.csproj", "src/symphony-test-1.Api/"]
+RUN dotnet restore "src/symphony-test-1.Api/symphony-test-1.Api.csproj"
 
 # Copy everything else and build
 COPY . .
-WORKDIR "/src/src/StarterKit.Api"
-RUN dotnet build "StarterKit.Api.csproj" -c Release -o /app/build
+WORKDIR "/src/src/symphony-test-1.Api"
+RUN dotnet build "symphony-test-1.Api.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "StarterKit.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "symphony-test-1.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
@@ -22,4 +22,4 @@ EXPOSE 8081
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "StarterKit.Api.dll"]
+ENTRYPOINT ["dotnet", "SymphonyTest1.Api.dll"]

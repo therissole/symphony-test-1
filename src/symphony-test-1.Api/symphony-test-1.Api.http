@@ -1,0 +1,42 @@
+@SymphonyTest1.Api_HostAddress = http://localhost:8080
+
+### Health Check
+GET {{SymphonyTest1.Api_HostAddress}}/api/health
+Accept: application/json
+
+###
+
+### Get All Languages
+GET {{SymphonyTest1.Api_HostAddress}}/api/languages
+Accept: application/json
+
+###
+
+### Create a Language
+POST {{SymphonyTest1.Api_HostAddress}}/api/languages
+Content-Type: application/json
+
+{
+  "name": "French",
+  "code": "fr"
+}
+
+###
+
+### Get All Greetings
+GET {{SymphonyTest1.Api_HostAddress}}/api/greetings
+Accept: application/json
+
+###
+
+### Get Greeting by Language Code
+GET {{SymphonyTest1.Api_HostAddress}}/api/greetings/by-language/en
+Accept: application/json
+
+###
+
+### Get Formal Greeting by Language Code
+GET {{SymphonyTest1.Api_HostAddress}}/api/greetings/by-language/en?formal=true
+Accept: application/json
+
+###

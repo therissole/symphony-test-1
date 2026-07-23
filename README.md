@@ -25,8 +25,8 @@ A comprehensive starter project for C# applications that demonstrates best pract
 
 ```bash
 # Clone the repository
-git clone https://github.com/therissole/csharp-ai-enabled-sdlc-starter-kit.git
-cd csharp-ai-enabled-sdlc-starter-kit
+git clone https://github.com/therissole/symphony-test-1.git
+cd symphony-test-1
 
 # Start all services
 docker-compose up -d
@@ -48,7 +48,7 @@ dotnet restore
 dotnet test
 
 # Run the API (requires PostgreSQL running)
-cd src/StarterKit.Api
+cd src/symphony-test-1.Api
 dotnet run
 ```
 
@@ -57,7 +57,7 @@ dotnet run
 ```
 .
 ├── src/
-│   └── StarterKit.Api/           # Main API application
+│   └── symphony-test-1.Api/           # Main API application
 │       ├── Features/              # Vertical slice features
 │       │   ├── Languages/         # Language CRUD operations
 │       │   ├── Greetings/        # Greeting CRUD operations
@@ -123,9 +123,9 @@ The project includes three levels of testing:
 dotnet test
 
 # Run specific test suites
-dotnet test tests/unit/StarterKit.UnitTests/
-dotnet test tests/integration/StarterKit.IntegrationTests/
-dotnet test tests/e2e/StarterKit.E2ETests/
+dotnet test tests/unit/symphony-test-1.UnitTests/
+dotnet test tests/integration/symphony-test-1.IntegrationTests/
+dotnet test tests/e2e/symphony-test-1.E2ETests/
 ```
 
 ### Test Coverage

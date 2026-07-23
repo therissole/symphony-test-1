@@ -1,9 +1,9 @@
 services:
   postgres:
     image: postgres:18-alpine
-    container_name: starterkit-postgres
+    container_name: symphony-test-1-postgres
     environment:
-      POSTGRES_DB: starterkit
+      POSTGRES_DB: symphony_test_1
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -18,12 +18,12 @@ services:
 
   flyway:
     image: flyway/flyway:latest
-    container_name: starterkit-flyway
+    container_name: symphony-test-1-flyway
     command: migrate
     volumes:
       - ./db/migrations:/flyway/sql
     environment:
-      FLYWAY_URL: jdbc:postgresql://postgres:5432/starterkit
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/symphony_test_1
       FLYWAY_USER: postgres
       FLYWAY_PASSWORD: postgres
       FLYWAY_BASELINE_ON_MIGRATE: "true"
@@ -35,13 +35,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: starterkit-api
+    container_name: symphony-test-1-api
     ports:
       - "8080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=starterkit;Username=postgres;Password=postgres"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=symphony_test_1;Username=postgres;Password=postgres"
     depends_on:
       postgres:
         condition: service_healthy

@@ -21,8 +21,8 @@ The easiest way to get started is using Docker Compose:
 
 ```bash
 # Clone the repository
-git clone https://github.com/therissole/csharp-ai-enabled-sdlc-starter-kit.git
-cd csharp-ai-enabled-sdlc-starter-kit
+git clone https://github.com/therissole/symphony-test-1.git
+cd symphony-test-1
 
 # Start all services
 docker-compose up -d
@@ -68,7 +68,7 @@ For local development without Docker:
 docker run -d \
   --name postgres \
   -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=starterkit \
+  -e POSTGRES_DB=symphony_test_1 \
   -p 5432:5432 \
   postgres:16-alpine
 
@@ -77,13 +77,13 @@ docker run --rm \
   --network host \
   -v $(pwd)/db/migrations:/flyway/sql \
   flyway/flyway:10-alpine \
-  -url=jdbc:postgresql://localhost:5432/starterkit \
+  -url=jdbc:postgresql://localhost:5432/symphony_test_1 \
   -user=postgres \
   -password=postgres \
   migrate
 
 # Run the application
-cd src/StarterKit.Api
+cd src/symphony-test-1.Api
 dotnet run
 ```
 
@@ -94,9 +94,9 @@ dotnet run
 dotnet test
 
 # Run specific test project
-dotnet test tests/unit/StarterKit.UnitTests/StarterKit.UnitTests.csproj
-dotnet test tests/integration/StarterKit.IntegrationTests/StarterKit.IntegrationTests.csproj
-dotnet test tests/e2e/StarterKit.E2ETests/StarterKit.E2ETests.csproj
+dotnet test tests/unit/symphony-test-1.UnitTests/symphony-test-1.UnitTests.csproj
+dotnet test tests/integration/symphony-test-1.IntegrationTests/symphony-test-1.IntegrationTests.csproj
+dotnet test tests/e2e/symphony-test-1.E2ETests/symphony-test-1.E2ETests.csproj
 ```
 
 ## Next Steps
