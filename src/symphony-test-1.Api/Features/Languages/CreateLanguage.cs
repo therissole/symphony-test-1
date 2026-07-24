@@ -8,6 +8,9 @@ namespace SymphonyTest1.Api.Features.Languages;
 
 public static class CreateLanguage
 {
+    /// <summary>Values required to create a language.</summary>
+    /// <param name="Name">The human-readable language name. Maximum length is 100 characters.</param>
+    /// <param name="Code">The unique short code for the language. Maximum length is 10 characters.</param>
     public sealed record Request(string Name, string Code);
 
     internal sealed class RequestValidator : AbstractValidator<Request>
@@ -32,6 +35,12 @@ public static class CreateLanguage
         }
     }
 
+    /// <summary>Represents the newly created language.</summary>
+    /// <param name="Id">The unique language identifier.</param>
+    /// <param name="Name">The human-readable language name.</param>
+    /// <param name="Code">The short code used to identify the language.</param>
+    /// <param name="CreatedAt">The UTC time when the language was created.</param>
+    /// <param name="UpdatedAt">The UTC time when the language was last updated.</param>
     public sealed record Response(
         Guid Id,
         string Name,
@@ -43,6 +52,8 @@ public static class CreateLanguage
     {
         group.MapPost("/", Handle)
             .WithName("CreateLanguage")
+            .WithSummary("Create a language")
+            .WithDescription("Adds a language with a unique name and code to the catalog.")
             .Produces<Response>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .Produces<ProblemDetails>(StatusCodes.Status409Conflict);

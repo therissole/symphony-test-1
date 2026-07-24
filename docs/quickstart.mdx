@@ -10,6 +10,7 @@ description: 'Run and verify the Vertical Slice Architecture reference'
 - [Docker](https://www.docker.com/get-started) with Docker Compose
 - [.NET 10 SDK](https://dotnet.microsoft.com/download) for local development
 - [Aspire CLI](https://aspire.dev/get-started/install-cli/)
+- [Node.js](https://nodejs.org/) 20.17 or later for the Mintlify preview
 - Git
 
 ## Run with Aspire
@@ -25,8 +26,15 @@ The Aspire AppHost starts:
 - PostgreSQL 18 with persistent local data
 - A one-shot .NET migration resource
 - The API after all migrations complete successfully
+- The local Mintlify documentation preview
 
-Use the API endpoint shown in the Aspire dashboard:
+Use the API and documentation endpoints shown in the Aspire dashboard. The documentation resource
+reloads as files under `docs/` change. In the documentation, open **API Reference**, select an
+endpoint, and choose **Try it** to send a request to the running API.
+The endpoint pages are generated from the API's live Development OpenAPI document each time the
+documentation resource starts.
+
+Use the API endpoint to exercise the slices:
 
 ```bash
 curl <api-endpoint>/api/health

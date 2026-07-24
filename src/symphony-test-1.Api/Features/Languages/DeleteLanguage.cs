@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Dapper;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Npgsql;
@@ -10,12 +11,14 @@ public static class DeleteLanguage
     {
         group.MapDelete("/{id:guid}", Handle)
             .WithName("DeleteLanguage")
+            .WithSummary("Delete a language")
+            .WithDescription("Deletes a language from the catalog by its unique identifier.")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound);
     }
 
     private static async Task<Results<NoContent, NotFound>> Handle(
-        Guid id,
+        [Description("The unique language identifier.")] Guid id,
         NpgsqlDataSource dataSource,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)

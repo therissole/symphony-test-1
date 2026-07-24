@@ -13,10 +13,22 @@ var migrations = builder
     .WithReference(database)
     .WaitFor(database);
 
-builder
+var api = builder
     .AddProject<Projects.symphony_test_1_Api>("api")
     .WithReference(database)
     .WaitForCompletion(migrations)
     .WithHttpHealthCheck("/api/health");
+
+builder
+    .AddJavaScriptApp("docs", "../../docs")
+    .WithRunScript("dev")
+    .WithEnvironment("API_BASE_URL", api.GetEndpoint("https"))
+    .WaitFor(api)
+    .WithHttpEndpoint(name: "http", env: "PORT")
+    .WithUrlForEndpoint("http", url =>
+    {
+        url.DisplayText = "Mintlify documentation";
+    })
+    .ExcludeFromManifest();
 
 builder.Build().Run();

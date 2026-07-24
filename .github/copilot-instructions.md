@@ -22,7 +22,9 @@ an endpoint.
 ## Code conventions
 
 - Preserve public HTTP contracts unless the task explicitly changes them.
-- Use typed Minimal API results with accurate OpenAPI metadata.
+- Use typed Minimal API results with accurate OpenAPI metadata. Give every slice route a concise
+  summary and behavioral description, and document request and response record fields for the
+  generated schema.
 - Define request rules in a nested internal FluentValidation `RequestValidator`, inject
   `IValidator<Request>` into the handler, and invoke `ValidateAsync` before I/O.
 - Return validation problems using `ValidationResult.ToDictionary()`, preserving the JSON

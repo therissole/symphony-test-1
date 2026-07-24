@@ -27,7 +27,9 @@ one named slice file.
    `RETURNING` so the write and returned representation are atomic.
 8. Catch only expected database conditions such as unique or foreign-key violations and map
    them deliberately. Let unexpected failures reach the global Problem Details handler.
-9. Return typed Minimal API results and declare the matching OpenAPI response metadata.
+9. Return typed Minimal API results and declare matching OpenAPI response metadata. Give every
+   route a concise `WithSummary` and behavioral `WithDescription`, and document request and
+   response record parameters with XML comments so generated schemas explain their JSON fields.
 10. Register the slice in `<Capability>Feature.cs`; keep `Program.cs` as the composition root.
 11. Unit-test the nested validator directly when rules warrant it, add HTTP integration tests for
     every outcome, and use end-to-end tests only for workflows crossing multiple slices.

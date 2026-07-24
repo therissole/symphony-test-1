@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Dapper;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -7,6 +8,10 @@ namespace SymphonyTest1.Api.Features.Greetings;
 
 public static class UpdateGreeting
 {
+    /// <summary>Values required to update a greeting.</summary>
+    /// <param name="LanguageId">The identifier of the language associated with the greeting.</param>
+    /// <param name="GreetingText">The greeting text. Maximum length is 255 characters.</param>
+    /// <param name="Formal">Whether the greeting is intended for formal contexts.</param>
     public sealed record Request(Guid LanguageId, string GreetingText, bool Formal);
 
     internal sealed class RequestValidator : AbstractValidator<Request>
@@ -28,6 +33,13 @@ public static class UpdateGreeting
         }
     }
 
+    /// <summary>Represents the updated greeting.</summary>
+    /// <param name="Id">The unique greeting identifier.</param>
+    /// <param name="LanguageId">The identifier of the language associated with the greeting.</param>
+    /// <param name="GreetingText">The greeting text returned to clients.</param>
+    /// <param name="Formal">Whether the greeting is intended for formal contexts.</param>
+    /// <param name="CreatedAt">The UTC time when the greeting was created.</param>
+    /// <param name="UpdatedAt">The UTC time when the greeting was last updated.</param>
     public sealed record Response(
         Guid Id,
         Guid LanguageId,
@@ -40,13 +52,16 @@ public static class UpdateGreeting
     {
         group.MapPut("/{id:guid}", Handle)
             .WithName("UpdateGreeting")
+            .WithSummary("Update a greeting")
+            .WithDescription(
+                "Replaces the language, text, and formality of an existing greeting.")
             .Produces<Response>()
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status404NotFound);
     }
 
     private static async Task<Results<Ok<Response>, ValidationProblem, NotFound>> Handle(
-        Guid id,
+        [Description("The unique greeting identifier.")] Guid id,
         Request request,
         IValidator<Request> validator,
         NpgsqlDataSource dataSource,

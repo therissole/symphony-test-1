@@ -6,12 +6,19 @@ namespace SymphonyTest1.Api.Features.Health;
 
 public static class GetHealth
 {
+    /// <summary>Describes the API and database health at the time of the check.</summary>
+    /// <param name="Status">The overall health state.</param>
+    /// <param name="Database">The database connectivity state.</param>
+    /// <param name="Timestamp">The UTC time when the health check completed.</param>
     public sealed record Response(string Status, string Database, DateTime Timestamp);
 
     public static void Map(RouteGroupBuilder group)
     {
         group.MapGet("/", Handle)
             .WithName("GetHealth")
+            .WithSummary("Get health")
+            .WithDescription(
+                "Checks whether the API can connect to PostgreSQL and execute a simple query.")
             .Produces<Response>()
             .Produces<Response>(StatusCodes.Status503ServiceUnavailable);
     }

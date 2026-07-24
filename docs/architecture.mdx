@@ -162,6 +162,11 @@ should not be added merely as an architectural badge.
 - Health failures return `503` without exposing connection or exception details.
 
 OpenAPI metadata on each slice declares the same result set implemented by the handler.
+Each route also supplies a concise summary and a behavioral description. XML documentation on
+slice-local request and response records describes their JSON fields in the generated schema.
+Because those contracts intentionally share the nested names `Request` and `Response`, the
+composition root prefixes OpenAPI schema reference IDs with the declaring slice name so every
+contract remains distinct.
 
 ## Transactions and domain logic
 

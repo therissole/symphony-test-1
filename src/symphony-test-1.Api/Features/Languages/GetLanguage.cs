@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Dapper;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Npgsql;
@@ -6,6 +7,12 @@ namespace SymphonyTest1.Api.Features.Languages;
 
 public static class GetLanguage
 {
+    /// <summary>Represents a language in the catalog.</summary>
+    /// <param name="Id">The unique language identifier.</param>
+    /// <param name="Name">The human-readable language name.</param>
+    /// <param name="Code">The short code used to identify the language.</param>
+    /// <param name="CreatedAt">The UTC time when the language was created.</param>
+    /// <param name="UpdatedAt">The UTC time when the language was last updated.</param>
     public sealed record Response(
         Guid Id,
         string Name,
@@ -17,12 +24,14 @@ public static class GetLanguage
     {
         group.MapGet("/{id:guid}", Handle)
             .WithName("GetLanguageById")
+            .WithSummary("Get a language")
+            .WithDescription("Returns a language from the catalog by its unique identifier.")
             .Produces<Response>()
             .Produces(StatusCodes.Status404NotFound);
     }
 
     private static async Task<Results<Ok<Response>, NotFound>> Handle(
-        Guid id,
+        [Description("The unique language identifier.")] Guid id,
         NpgsqlDataSource dataSource,
         CancellationToken cancellationToken)
     {

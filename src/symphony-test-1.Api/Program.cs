@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using FluentValidation;
+using Microsoft.AspNetCore.OpenApi;
 using SymphonyTest1.Api.Features.Greetings;
 using SymphonyTest1.Api.Features.Health;
 using SymphonyTest1.Api.Features.Languages;
@@ -8,7 +9,18 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.CreateSchemaReferenceId = jsonTypeInfo =>
+    {
+        var defaultId = OpenApiOptions.CreateDefaultSchemaReferenceId(jsonTypeInfo);
+        var declaringType = jsonTypeInfo.Type.DeclaringType;
+
+        return defaultId is null || declaringType is null
+            ? defaultId
+            : $"{declaringType.Name}{defaultId}";
+    };
+});
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>

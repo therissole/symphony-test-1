@@ -13,6 +13,9 @@ obj/
 TestResults/
 *.trx
 .artifacts/
+node_modules/
+.mintlify/
+docs/.generated/
 
 # Rider
 .idea/
