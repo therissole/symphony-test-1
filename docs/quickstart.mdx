@@ -9,57 +9,54 @@ description: 'Run and verify the Vertical Slice Architecture reference'
 
 - [Docker](https://www.docker.com/get-started) with Docker Compose
 - [.NET 10 SDK](https://dotnet.microsoft.com/download) for local development
+- [Aspire CLI](https://aspire.dev/get-started/install-cli/)
 - Git
 
-## Run the complete environment
+## Run with Aspire
 
 ```bash
 git clone https://github.com/therissole/symphony-test-1.git
 cd symphony-test-1
-docker compose up --build -d
-docker compose ps
+aspire run
 ```
 
-Docker Compose starts:
+The Aspire AppHost starts:
 
-- PostgreSQL 18 on port `5432`
-- Flyway 13, which applies migrations once
-- The API on port `8080`
+- PostgreSQL 18 with persistent local data
+- A one-shot .NET migration resource
+- The API after all migrations complete successfully
 
-Check the application:
+Use the API endpoint shown in the Aspire dashboard:
 
 ```bash
+curl <api-endpoint>/api/health
+curl <api-endpoint>/api/languages
+curl "<api-endpoint>/api/greetings/by-language/en?formal=true"
+```
+
+To run another instance with randomized ports and isolated user secrets:
+
+```bash
+aspire run --isolated
+```
+
+The Development OpenAPI document is at `<api-endpoint>/openapi/v1.json`. Aspire also exposes
+platform readiness and liveness endpoints at `/health` and `/alive`; the existing `/api/health`
+slice remains the database-aware public API contract.
+
+## Run with Docker Compose
+
+Docker Compose remains available for a fixed-port, headless environment and uses the same
+migration executable:
+
+```bash
+docker compose up --build --wait
 curl http://localhost:8080/api/health
-curl http://localhost:8080/api/languages
-curl "http://localhost:8080/api/greetings/by-language/en?formal=true"
-```
-
-The Development OpenAPI document is available at:
-
-```text
-http://localhost:8080/openapi/v1.json
-```
-
-To avoid host port collisions, set `SYMPHONY_API_PORT` or `SYMPHONY_POSTGRES_PORT` before
-starting Compose. Their defaults are `8080` and `5432`.
-
-To stop the environment and delete its local database volume:
-
-```bash
 docker compose down -v
 ```
 
-## Run the API from the SDK
-
-Use Docker only for PostgreSQL and migrations:
-
-```bash
-docker compose up -d postgres flyway
-dotnet run --project src/symphony-test-1.Api
-```
-
-The Development connection string targets `localhost:5432`. Docker Compose overrides it with the
-internal `postgres` host when the API runs in a container.
+Set `SYMPHONY_API_PORT` or `SYMPHONY_POSTGRES_PORT` before starting Compose to override the
+default host ports `8080` and `5432`.
 
 ## Run tests
 

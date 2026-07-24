@@ -40,5 +40,6 @@ details, or exception messages in the response.
 curl http://localhost:8080/api/health
 ```
 
-Docker Compose uses this endpoint as the API container health check. It is a dependency-aware
-readiness signal, not a process-only liveness probe.
+The Aspire AppHost and Docker Compose use this endpoint as the API health check. It is a
+dependency-aware readiness signal, not a process-only liveness probe. During Aspire development,
+service defaults also expose `/health` and `/alive` as platform readiness and liveness endpoints.

@@ -1,0 +1,14 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY ["src/symphony-test-1.DatabaseMigrations/symphony-test-1.DatabaseMigrations.csproj", "src/symphony-test-1.DatabaseMigrations/"]
+RUN dotnet restore "src/symphony-test-1.DatabaseMigrations/symphony-test-1.DatabaseMigrations.csproj"
+
+COPY . .
+WORKDIR "/src/src/symphony-test-1.DatabaseMigrations"
+RUN dotnet publish "symphony-test-1.DatabaseMigrations.csproj" -c Release -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "SymphonyTest1.DatabaseMigrations.dll"]

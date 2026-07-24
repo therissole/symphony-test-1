@@ -15,16 +15,12 @@ services:
       timeout: 5s
       retries: 5
 
-  flyway:
-    image: flyway/flyway:13.0.0-alpine
-    command: migrate
-    volumes:
-      - ./db/migrations:/flyway/sql
+  migrations:
+    build:
+      context: .
+      dockerfile: Dockerfile.Migrations
     environment:
-      FLYWAY_URL: jdbc:postgresql://postgres:5432/symphony_test_1
-      FLYWAY_USER: postgres
-      FLYWAY_PASSWORD: postgres
-      FLYWAY_BASELINE_ON_MIGRATE: "true"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=symphony_test_1;Username=postgres;Password=postgres"
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,7 +38,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      flyway:
+      migrations:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]

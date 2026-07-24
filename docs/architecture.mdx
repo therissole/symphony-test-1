@@ -74,9 +74,16 @@ src/symphony-test-1.Api/
 │   └── Health/
 │       ├── HealthFeature.cs
 │       └── GetHealth.cs
-├── Infrastructure/
-│   └── Database.cs
 └── Program.cs
+
+src/symphony-test-1.AppHost/
+└── AppHost.cs                     Aspire resource graph and startup ordering
+
+src/symphony-test-1.DatabaseMigrations/
+└── Program.cs                     Versioned, checksum-verified SQL migration runner
+
+src/symphony-test-1.ServiceDefaults/
+└── Extensions.cs                  Telemetry, health, resilience, and discovery defaults
 ```
 
 ## Anatomy of a slice
@@ -100,15 +107,18 @@ Shared code is intentionally small:
 
 | Shared concern | Why it is shared |
 | --- | --- |
-| `NpgsqlDataSource` registration | Connection pooling and lifetime are platform mechanics |
+| Aspire Npgsql client integration | Connection pooling, health checks, and telemetry are platform mechanics |
 | Global Problem Details | Unexpected failures need one safe response policy |
-| Serilog request logging | Applies uniformly to the HTTP pipeline |
-| OpenTelemetry setup | Captures platform-level request and database spans |
+| OpenTelemetry logging | Exports structured `ILogger` events with active trace and span context |
+| Aspire service defaults | Captures telemetry and supplies platform health and resilience |
 | FluentValidation registration | Discovers internal validators while rules remain inside slices |
 | Capability route registration | Composes slices without owning their behavior |
 
-Database migrations remain centralized because the sample uses one relational schema. A larger
-modular system could own migrations per module without changing the slice design.
+Database migrations remain centralized because the sample uses one relational schema. The AppHost
+runs the migration project to completion before it starts the API. The runner serializes concurrent
+attempts with a PostgreSQL advisory lock and rejects changes to an already-applied migration by
+comparing its checksum. A larger modular system could own migrations per module without changing
+the slice design.
 
 ## What is not shared
 

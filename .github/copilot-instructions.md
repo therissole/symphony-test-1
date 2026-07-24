@@ -13,7 +13,8 @@ ASP.NET Core Minimal APIs, PostgreSQL, Dapper, NUnit, and Testcontainers.
 - Do not create CRUD repositories, generic repositories, application services, shared persistence
   models, or shared DTO files.
 - Do not add MediatR just to dispatch handlers. VSA does not require it.
-- Share platform mechanics only: database data source, exception handling, telemetry, and logging.
+- Share platform mechanics only: database data source, exception handling, OpenTelemetry, and
+  structured logging.
 
 Load `.github/skills/build-vertical-slice/SKILL.md` when adding, changing, reviewing, or refactoring
 an endpoint.

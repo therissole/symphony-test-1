@@ -12,6 +12,7 @@ obj/
 *.DotSettings.user
 TestResults/
 *.trx
+.artifacts/
 
 # Rider
 .idea/

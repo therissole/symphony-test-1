@@ -16,40 +16,37 @@ operation owns its route, contract, validation, handler, SQL, mapping, and expec
 - Atomic command responses with PostgreSQL `RETURNING`
 - RFC 7807 Problem Details and validation problems
 - Cancellation-aware database I/O
-- Structured request and command logging with Serilog
-- OpenTelemetry tracing for ASP.NET Core, HTTP clients, and Npgsql
+- Trace-correlated structured logging through `ILogger` and OpenTelemetry
+- Aspire service defaults for OpenTelemetry, health checks, resilience, and service discovery
+- Aspire 13.4 AppHost orchestration for the API, PostgreSQL, and database migrations
 - NUnit unit, integration, and end-to-end tests
 - Real PostgreSQL tests through Testcontainers
-- Flyway migrations and a complete Docker Compose environment
+- Versioned, checksum-verified SQL migrations and a complete Docker Compose fallback
 - Repository instructions, custom agents, and a reusable VSA agent skill
 
 ## Quick start
 
-Prerequisites: Docker with Compose. The .NET 10 SDK is also required for local development.
+Prerequisites: Docker, the .NET 10 SDK, and the Aspire CLI.
 
 ```bash
 git clone https://github.com/therissole/symphony-test-1.git
 cd symphony-test-1
-docker compose up --build -d
-docker compose ps
-curl http://localhost:8080/api/health
+aspire run
 ```
 
-The API is available at `http://localhost:8080`. In Development, its OpenAPI document is at
-`http://localhost:8080/openapi/v1.json`.
+The Aspire dashboard shows the dynamically assigned API endpoint. Open `/api/health` from that
+endpoint to verify database-aware health, or `/openapi/v1.json` for the OpenAPI document.
 
-If those host ports are already occupied, set `SYMPHONY_API_PORT` and
-`SYMPHONY_POSTGRES_PORT` before running Compose; container-to-container ports remain unchanged.
-
-Stop and remove the local containers and data volume with:
+To run beside another copy without port or user-secret collisions:
 
 ```bash
-docker compose down -v
+aspire run --isolated
 ```
 
 ## Project structure
 
 ```text
+src/symphony-test-1.AppHost/       # Aspire application model and orchestration
 src/symphony-test-1.Api/
 ├── Features/
 │   ├── Languages/
@@ -65,9 +62,13 @@ src/symphony-test-1.Api/
 │   └── Health/
 │       ├── HealthFeature.cs
 │       └── GetHealth.cs
-├── Infrastructure/
-│   └── Database.cs
 └── Program.cs
+
+src/symphony-test-1.DatabaseMigrations/
+└── Program.cs                     # one-shot, versioned SQL migration resource
+
+src/symphony-test-1.ServiceDefaults/
+└── Extensions.cs                  # telemetry, health, resilience, discovery
 
 tests/
 ├── unit/          # deterministic validation rules
@@ -108,11 +109,21 @@ See [the API reference](docs/api-reference/languages.mdx) for payloads and statu
 
 ## Local development and verification
 
-Start only the database and migration runner, then run the API:
+Aspire is the primary local-development path:
 
 ```bash
-docker compose up -d postgres flyway
-dotnet run --project src/symphony-test-1.Api
+aspire run
+```
+
+The AppHost creates PostgreSQL, runs every unapplied `db/migrations/V*.sql` file, verifies
+checksums for migrations already applied, and starts the API only after migration success.
+
+Docker Compose remains available as a headless fallback and uses the same .NET migration resource:
+
+```bash
+docker compose up --build --wait
+curl http://localhost:8080/api/health
+docker compose down -v
 ```
 
 Run the quality checks:

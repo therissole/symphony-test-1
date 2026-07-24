@@ -118,5 +118,5 @@ A uniqueness conflict uses:
 }
 ```
 
-Unexpected failures are rendered by the application's global Problem Details handler and include a
-request `traceId`, not internal exception details.
+Unexpected failures are rendered by the application's global Problem Details handler and include
+the current OpenTelemetry `traceId`, not internal exception details.

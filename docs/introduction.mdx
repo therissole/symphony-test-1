@@ -6,7 +6,7 @@ description: 'An executable .NET reference for request-oriented Vertical Slice A
 # Vertical Slice Architecture Reference
 
 This repository demonstrates Vertical Slice Architecture (VSA) with ASP.NET Core Minimal APIs,
-PostgreSQL, and Dapper.
+PostgreSQL, Dapper, and Aspire 13.4 orchestration.
 
 The central rule is simple: **one request is one use case and one slice**. A slice owns everything
 needed to fulfill that request:
@@ -34,6 +34,7 @@ The sample deliberately uses:
 - Typed HTTP results and RFC 7807 Problem Details
 - Real PostgreSQL integration tests through Testcontainers
 - Shared infrastructure only for genuine platform mechanics
+- Aspire AppHost orchestration and service defaults for local platform concerns
 
 These are implementation choices, not universal VSA requirements. The architectural requirement is
 request-level cohesion and independence.
