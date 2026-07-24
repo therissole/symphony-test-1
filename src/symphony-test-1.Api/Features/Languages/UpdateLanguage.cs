@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Dapper;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -8,6 +9,9 @@ namespace SymphonyTest1.Api.Features.Languages;
 
 public static class UpdateLanguage
 {
+    /// <summary>Values required to update a language.</summary>
+    /// <param name="Name">The human-readable language name. Maximum length is 100 characters.</param>
+    /// <param name="Code">The unique short code for the language. Maximum length is 10 characters.</param>
     public sealed record Request(string Name, string Code);
 
     internal sealed class RequestValidator : AbstractValidator<Request>
@@ -32,6 +36,12 @@ public static class UpdateLanguage
         }
     }
 
+    /// <summary>Represents the updated language.</summary>
+    /// <param name="Id">The unique language identifier.</param>
+    /// <param name="Name">The human-readable language name.</param>
+    /// <param name="Code">The short code used to identify the language.</param>
+    /// <param name="CreatedAt">The UTC time when the language was created.</param>
+    /// <param name="UpdatedAt">The UTC time when the language was last updated.</param>
     public sealed record Response(
         Guid Id,
         string Name,
@@ -43,6 +53,8 @@ public static class UpdateLanguage
     {
         group.MapPut("/{id:guid}", Handle)
             .WithName("UpdateLanguage")
+            .WithSummary("Update a language")
+            .WithDescription("Replaces the name and code of an existing language.")
             .Produces<Response>()
             .ProducesValidationProblem()
             .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
@@ -50,7 +62,7 @@ public static class UpdateLanguage
     }
 
     private static async Task<Results<Ok<Response>, ValidationProblem, Conflict<ProblemDetails>, NotFound>> Handle(
-        Guid id,
+        [Description("The unique language identifier.")] Guid id,
         Request request,
         IValidator<Request> validator,
         NpgsqlDataSource dataSource,

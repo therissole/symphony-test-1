@@ -7,6 +7,10 @@ namespace SymphonyTest1.Api.Features.Greetings;
 
 public static class CreateGreeting
 {
+    /// <summary>Values required to create a greeting.</summary>
+    /// <param name="LanguageId">The identifier of the language associated with the greeting.</param>
+    /// <param name="GreetingText">The greeting text. Maximum length is 255 characters.</param>
+    /// <param name="Formal">Whether the greeting is intended for formal contexts.</param>
     public sealed record Request(Guid LanguageId, string GreetingText, bool Formal);
 
     internal sealed class RequestValidator : AbstractValidator<Request>
@@ -28,6 +32,13 @@ public static class CreateGreeting
         }
     }
 
+    /// <summary>Represents the newly created greeting.</summary>
+    /// <param name="Id">The unique greeting identifier.</param>
+    /// <param name="LanguageId">The identifier of the language associated with the greeting.</param>
+    /// <param name="GreetingText">The greeting text returned to clients.</param>
+    /// <param name="Formal">Whether the greeting is intended for formal contexts.</param>
+    /// <param name="CreatedAt">The UTC time when the greeting was created.</param>
+    /// <param name="UpdatedAt">The UTC time when the greeting was last updated.</param>
     public sealed record Response(
         Guid Id,
         Guid LanguageId,
@@ -40,6 +51,8 @@ public static class CreateGreeting
     {
         group.MapPost("/", Handle)
             .WithName("CreateGreeting")
+            .WithSummary("Create a greeting")
+            .WithDescription("Adds a greeting for an existing language.")
             .Produces<Response>(StatusCodes.Status201Created)
             .ProducesValidationProblem();
     }

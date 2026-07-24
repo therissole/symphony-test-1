@@ -26,7 +26,7 @@ operation owns its route, contract, validation, handler, SQL, mapping, and expec
 
 ## Quick start
 
-Prerequisites: Docker, the .NET 10 SDK, and the Aspire CLI.
+Prerequisites: Docker, the .NET 10 SDK, the Aspire CLI, and Node.js 20.17 or later.
 
 ```bash
 git clone https://github.com/therissole/symphony-test-1.git
@@ -105,7 +105,8 @@ request behavior. See [the architecture guide](docs/architecture.mdx) and the
 | Languages | `GET /api/languages`, `GET /api/languages/{id}`, `POST /api/languages`, `PUT /api/languages/{id}`, `DELETE /api/languages/{id}` |
 | Greetings | `GET /api/greetings`, `GET /api/greetings/{id}`, `GET /api/greetings/by-language/{code}`, `POST /api/greetings`, `PUT /api/greetings/{id}`, `DELETE /api/greetings/{id}` |
 
-See [the API reference](docs/api-reference/languages.mdx) for payloads and status codes.
+The local Mintlify site generates its interactive API reference from the API's live Development
+OpenAPI document.
 
 ## Local development and verification
 
@@ -116,7 +117,10 @@ aspire run
 ```
 
 The AppHost creates PostgreSQL, runs every unapplied `db/migrations/V*.sql` file, verifies
-checksums for migrations already applied, and starts the API only after migration success.
+checksums for migrations already applied, starts the API only after migration success, and starts
+the local Mintlify documentation preview. The Aspire dashboard shows links for both the API and
+the documentation. In Mintlify, open **API Reference** to inspect contracts, status codes, and send
+requests to the running API from the generated endpoint pages.
 
 Docker Compose remains available as a headless fallback and uses the same .NET migration resource:
 

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Dapper;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Npgsql;
@@ -10,12 +11,14 @@ public static class DeleteGreeting
     {
         group.MapDelete("/{id:guid}", Handle)
             .WithName("DeleteGreeting")
+            .WithSummary("Delete a greeting")
+            .WithDescription("Deletes a greeting by its unique identifier.")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound);
     }
 
     private static async Task<Results<NoContent, NotFound>> Handle(
-        Guid id,
+        [Description("The unique greeting identifier.")] Guid id,
         NpgsqlDataSource dataSource,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)

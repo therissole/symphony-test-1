@@ -6,6 +6,13 @@ namespace SymphonyTest1.Api.Features.Greetings;
 
 public static class ListGreetings
 {
+    /// <summary>Represents a stored greeting.</summary>
+    /// <param name="Id">The unique greeting identifier.</param>
+    /// <param name="LanguageId">The identifier of the language associated with the greeting.</param>
+    /// <param name="GreetingText">The greeting text returned to clients.</param>
+    /// <param name="Formal">Whether the greeting is intended for formal contexts.</param>
+    /// <param name="CreatedAt">The UTC time when the greeting was created.</param>
+    /// <param name="UpdatedAt">The UTC time when the greeting was last updated.</param>
     public sealed record Response(
         Guid Id,
         Guid LanguageId,
@@ -18,6 +25,8 @@ public static class ListGreetings
     {
         group.MapGet("/", Handle)
             .WithName("GetAllGreetings")
+            .WithSummary("List greetings")
+            .WithDescription("Returns every stored greeting, ordered by greeting text.")
             .Produces<List<Response>>();
     }
 

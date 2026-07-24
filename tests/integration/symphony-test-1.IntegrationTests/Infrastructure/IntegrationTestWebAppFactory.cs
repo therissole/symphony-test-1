@@ -9,11 +9,17 @@ namespace SymphonyTest1.IntegrationTests.Infrastructure;
 
 public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>
 {
+    private readonly string _environment;
     private readonly PostgreSqlContainer _dbContainer = new PostgreSqlBuilder("postgres:18-alpine")
         .WithDatabase("symphony_test_1_test")
         .WithUsername("postgres")
         .WithPassword("postgres")
         .Build();
+
+    public IntegrationTestWebAppFactory(string environment = "Testing")
+    {
+        _environment = environment;
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -23,7 +29,7 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>
             services.AddSingleton(_ => NpgsqlDataSource.Create(_dbContainer.GetConnectionString()));
         });
 
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment(_environment);
     }
 
     public async Task StartAsync()
