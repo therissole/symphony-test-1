@@ -57,7 +57,7 @@ jobs:
         files: |
           **/TestResults/*.trx
 
-  docker-build:
+  aspire-smoke-test:
     runs-on: ubuntu-latest
     needs: build-and-test
     
@@ -66,47 +66,39 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Build Docker image
-      run: docker build -t symphony-test-1-api:latest .
-    
-    - name: Start services
-      run: docker compose up --build --wait
-    
-    - name: Check API health
-      run: |
-        for i in {1..10}; do
-          if curl -f http://localhost:8080/api/health; then
-            echo "API is healthy"
-            exit 0
-          fi
-          echo "Waiting for API... attempt $i"
-          sleep 5
-        done
-        echo "API health check failed"
-        docker compose logs
-        exit 1
-    
-    - name: Test API endpoints
-      run: |
-        # Test the hosted Blazor WebAssembly application
-        curl -f http://localhost:8080/ || exit 1
 
-        # Test languages endpoint
-        curl -f http://localhost:8080/api/languages || exit 1
-        
-        # Test greetings endpoint
-        curl -f http://localhost:8080/api/greetings || exit 1
-        
-        # Test greeting by language
-        curl -f "http://localhost:8080/api/greetings/by-language/en" || exit 1
-    
-    - name: Stop services
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Install Aspire CLI
+      run: |
+        curl -sSL https://aspire.dev/install.sh | bash
+        echo "$HOME/.aspire/bin" >> "$GITHUB_PATH"
+
+    - name: Start Aspire application
+      run: |
+        aspire start --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --isolated --non-interactive
+        aspire wait api --status healthy --timeout 180 --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --non-interactive
+
+    - name: Verify application boundary
+      shell: bash
+      run: |
+        api_url="$(aspire describe api --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --format Json --non-interactive | jq -r '.resources[0].urls[] | select(.name == "http") | .url')"
+
+        test -n "$api_url"
+        curl --fail --show-error --silent "$api_url/"
+        curl --fail --show-error --silent "$api_url/api/health"
+
+        for endpoint in /api/languages /api/greetings /api/greetings/by-language/en; do
+          status="$(curl --output /dev/null --silent --write-out '%{http_code}' "$api_url$endpoint")"
+          test "$status" = "401"
+        done
+
+    - name: Stop Aspire application
       if: always()
-      run: docker compose down -v
+      run: aspire stop --all --non-interactive
 
   # documentation:
   #   runs-on: ubuntu-latest
