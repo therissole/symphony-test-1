@@ -23,4 +23,17 @@ public class GreetingValidationTests
 
         Assert.That(result.ToDictionary(), Does.ContainKey("greetingText"));
     }
+
+    [Test]
+    public void ListGreetings_WithAnInvalidTimeRange_ReturnsValidationError()
+    {
+        var validator = new ListGreetings.RequestValidator();
+        var result = validator.Validate(new ListGreetings.Request(
+            null,
+            null,
+            new DateTimeOffset(2026, 7, 27, 9, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 7, 26, 9, 0, 0, TimeSpan.Zero)));
+
+        Assert.That(result.ToDictionary(), Does.ContainKey("createdTo"));
+    }
 }

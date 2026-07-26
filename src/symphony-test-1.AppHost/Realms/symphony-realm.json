@@ -76,6 +76,35 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "acceptance-tests",
+      "name": "Acceptance tests",
+      "description": "Disposable client for externally driven acceptance tests",
+      "enabled": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "secret": "acceptance-tests-local-secret",
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "symphony-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "symphony-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "lightweight.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [
@@ -91,6 +120,24 @@
           "type": "password",
           "value": "ChangeMe!12345",
           "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "administrator"
+      ]
+    },
+    {
+      "username": "acceptance-browser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Acceptance",
+      "lastName": "Browser",
+      "email": "acceptance-browser@symphony.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Acceptance!12345",
+          "temporary": false
         }
       ],
       "realmRoles": [

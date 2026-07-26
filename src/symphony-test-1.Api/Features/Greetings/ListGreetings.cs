@@ -1,11 +1,36 @@
 using Dapper;
+using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Npgsql;
+using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Greetings;
 
 public static class ListGreetings
 {
+    /// <summary>Optional criteria used to narrow the greeting collection.</summary>
+    /// <param name="LanguageId">Returns greetings associated with this language.</param>
+    /// <param name="Formal">Returns greetings with this formality.</param>
+    /// <param name="CreatedFrom">Inclusive RFC 3339 lower bound for the creation instant.</param>
+    /// <param name="CreatedTo">Exclusive RFC 3339 upper bound for the creation instant.</param>
+    public sealed record Request(
+        Guid? LanguageId,
+        bool? Formal,
+        DateTimeOffset? CreatedFrom,
+        DateTimeOffset? CreatedTo);
+
+    internal sealed class RequestValidator : AbstractValidator<Request>
+    {
+        public RequestValidator()
+        {
+            RuleFor(request => request.CreatedTo)
+                .GreaterThan(request => request.CreatedFrom!.Value)
+                .When(request => request.CreatedFrom.HasValue && request.CreatedTo.HasValue)
+                .WithMessage("CreatedTo must be later than CreatedFrom.")
+                .OverridePropertyName("createdTo");
+        }
+    }
+
     /// <summary>Represents a stored greeting.</summary>
     /// <param name="Id">The unique greeting identifier.</param>
     /// <param name="LanguageId">The identifier of the language associated with the greeting.</param>
@@ -18,8 +43,8 @@ public static class ListGreetings
         Guid LanguageId,
         string GreetingText,
         bool Formal,
-        DateTime CreatedAt,
-        DateTime UpdatedAt);
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
 
     public static void Map(RouteGroupBuilder group)
     {
@@ -28,13 +53,22 @@ public static class ListGreetings
             .WithSummary("List greetings")
             .WithDescription("Returns every stored greeting, ordered by greeting text.")
             .Produces<List<Response>>()
-            .Produces(StatusCodes.Status401Unauthorized);
+            .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
     }
 
-    private static async Task<Ok<List<Response>>> Handle(
+    private static async Task<Results<Ok<List<Response>>, ValidationProblem>> Handle(
+        [AsParameters] Request request,
+        IValidator<Request> validator,
         NpgsqlDataSource dataSource,
         CancellationToken cancellationToken)
     {
+        var validationResult = await validator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return TypedResults.ValidationProblem(validationResult.ToDictionary());
+        }
+
         const string sql = """
             SELECT
                 id,
@@ -44,13 +78,46 @@ public static class ListGreetings
                 created_at AS CreatedAt,
                 updated_at AS UpdatedAt
             FROM greetings
+            WHERE
+                (@LanguageId IS NULL OR language_id = @LanguageId)
+                AND (@Formal IS NULL OR formal = @Formal)
+                AND (CAST(@CreatedFrom AS TIMESTAMPTZ) IS NULL OR created_at >= CAST(@CreatedFrom AS TIMESTAMPTZ))
+                AND (CAST(@CreatedTo AS TIMESTAMPTZ) IS NULL OR created_at < CAST(@CreatedTo AS TIMESTAMPTZ))
             ORDER BY greeting_text
             """;
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
-        var command = new CommandDefinition(sql, cancellationToken: cancellationToken);
-        var greetings = (await connection.QueryAsync<Response>(command)).AsList();
+        var command = new CommandDefinition(
+            sql,
+            new
+            {
+                request.LanguageId,
+                request.Formal,
+                request.CreatedFrom,
+                request.CreatedTo
+            },
+            cancellationToken: cancellationToken);
+        var greetings = (await connection.QueryAsync<DatabaseResponse>(command))
+            .Select(ToResponse)
+            .ToList();
 
         return TypedResults.Ok(greetings);
     }
+
+    private sealed record DatabaseResponse(
+        Guid Id,
+        Guid LanguageId,
+        string GreetingText,
+        bool Formal,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+
+    private static Response ToResponse(DatabaseResponse value) =>
+        new(
+            value.Id,
+            value.LanguageId,
+            value.GreetingText,
+            value.Formal,
+            UtcInstant.FromDatabase(value.CreatedAt),
+            UtcInstant.FromDatabase(value.UpdatedAt));
 }

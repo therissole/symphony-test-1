@@ -6,6 +6,7 @@ using SymphonyTest1.Api.Features.Greetings;
 using SymphonyTest1.Api.Features.Health;
 using SymphonyTest1.Api.Features.Languages;
 using SymphonyTest1.Api.Infrastructure.Authentication;
+using SymphonyTest1.Api.Infrastructure.Testing;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +35,24 @@ builder.Services.AddProblemDetails(options =>
     };
 });
 builder.Services.AddApplicationAuthentication(builder.Configuration);
+
+var enableClockControl = builder.Configuration.GetValue<bool>("Testing:EnableClockControl");
+if (enableClockControl && builder.Environment.IsProduction())
+{
+    throw new InvalidOperationException(
+        "Test-environment clock control cannot be enabled in Production.");
+}
+
+if (enableClockControl)
+{
+    builder.Services.AddSingleton(new ControlledTimeProvider(TimeProvider.System));
+    builder.Services.AddSingleton<TimeProvider>(serviceProvider =>
+        serviceProvider.GetRequiredService<ControlledTimeProvider>());
+}
+else
+{
+    builder.Services.AddSingleton(TimeProvider.System);
+}
 
 builder.AddNpgsqlDataSource("DefaultConnection");
 builder.Services.AddValidatorsFromAssemblyContaining<Program>(includeInternalTypes: true);
@@ -68,6 +87,12 @@ api.MapGroup("/languages")
 
 api.MapGroup("/greetings")
     .MapGreetingEndpoints();
+
+if (enableClockControl)
+{
+    api.MapGroup("/testing")
+        .MapTestClockEndpoints();
+}
 
 app.Run();
 

@@ -3,6 +3,7 @@ using Dapper;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Npgsql;
+using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Greetings;
 
@@ -45,8 +46,8 @@ public static class UpdateGreeting
         Guid LanguageId,
         string GreetingText,
         bool Formal,
-        DateTime CreatedAt,
-        DateTime UpdatedAt);
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
 
     public static void Map(RouteGroupBuilder group)
     {
@@ -66,6 +67,7 @@ public static class UpdateGreeting
         Request request,
         IValidator<Request> validator,
         NpgsqlDataSource dataSource,
+        TimeProvider timeProvider,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -82,7 +84,7 @@ public static class UpdateGreeting
                 language_id = @LanguageId,
                 greeting_text = @GreetingText,
                 formal = @Formal,
-                updated_at = CURRENT_TIMESTAMP
+                updated_at = @Now
             WHERE id = @Id
             RETURNING
                 id,
@@ -96,16 +98,25 @@ public static class UpdateGreeting
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var command = new CommandDefinition(
             sql,
-            new { Id = id, request.LanguageId, request.GreetingText, request.Formal },
+            new
+            {
+                Id = id,
+                request.LanguageId,
+                request.GreetingText,
+                request.Formal,
+                Now = timeProvider.GetUtcNow()
+            },
             cancellationToken: cancellationToken);
 
         try
         {
-            var greeting = await connection.QuerySingleOrDefaultAsync<Response>(command);
-            if (greeting is null)
+            var databaseGreeting = await connection.QuerySingleOrDefaultAsync<DatabaseResponse>(command);
+            if (databaseGreeting is null)
             {
                 return TypedResults.NotFound();
             }
+
+            var greeting = ToResponse(databaseGreeting);
 
             logger.LogInformation("Updated greeting {GreetingId}", id);
             return TypedResults.Ok(greeting);
@@ -119,4 +130,21 @@ public static class UpdateGreeting
             });
         }
     }
+
+    private sealed record DatabaseResponse(
+        Guid Id,
+        Guid LanguageId,
+        string GreetingText,
+        bool Formal,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+
+    private static Response ToResponse(DatabaseResponse value) =>
+        new(
+            value.Id,
+            value.LanguageId,
+            value.GreetingText,
+            value.Formal,
+            UtcInstant.FromDatabase(value.CreatedAt),
+            UtcInstant.FromDatabase(value.UpdatedAt));
 }

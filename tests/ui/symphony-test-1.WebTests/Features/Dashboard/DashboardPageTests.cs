@@ -32,8 +32,8 @@ public sealed class DashboardPageTests : BunitContext
                     Id = languageId,
                     Name = "English",
                     Code = "en",
-                    CreatedAt = DateTime.UtcNow.AddDays(-2),
-                    UpdatedAt = DateTime.UtcNow.AddDays(-1)
+                    CreatedAt = new DateTimeOffset(2026, 7, 24, 9, 0, 0, TimeSpan.Zero),
+                    UpdatedAt = new DateTimeOffset(2026, 7, 25, 9, 0, 0, TimeSpan.Zero)
                 }
             },
             ["/api/greetings/"] = new[]
@@ -44,8 +44,8 @@ public sealed class DashboardPageTests : BunitContext
                     LanguageId = languageId,
                     GreetingText = "Good morning",
                     Formal = true,
-                    CreatedAt = DateTime.UtcNow.AddDays(-1),
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = new DateTimeOffset(2026, 7, 25, 9, 0, 0, TimeSpan.Zero),
+                    UpdatedAt = new DateTimeOffset(2026, 7, 26, 9, 0, 0, TimeSpan.Zero)
                 }
             }
         });

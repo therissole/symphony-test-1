@@ -13,6 +13,7 @@ Console.CancelKeyPress += (_, eventArgs) =>
 };
 
 var cancellationToken = cancellationSource.Token;
+var timeProvider = TimeProvider.System;
 var connectionString =
     Environment.GetEnvironmentVariable($"ConnectionStrings__{connectionStringName}")
     ?? throw new InvalidOperationException(
@@ -47,7 +48,7 @@ await using (var historyCommand = new NpgsqlCommand(
     (
         version TEXT PRIMARY KEY,
         checksum TEXT NOT NULL,
-        applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        applied_at TIMESTAMPTZ NOT NULL
     );
     """,
     connection))
@@ -95,8 +96,8 @@ foreach (var migrationPath in migrationPaths)
 
     await using (var recordCommand = new NpgsqlCommand(
         """
-        INSERT INTO __schema_migrations (version, checksum)
-        VALUES (@version, @checksum);
+        INSERT INTO __schema_migrations (version, checksum, applied_at)
+        VALUES (@version, @checksum, @appliedAt);
         """,
         connection,
         transaction))
@@ -105,6 +106,7 @@ foreach (var migrationPath in migrationPaths)
         recordCommand.Parameters.Add(
             "checksum",
             NpgsqlDbType.Text).Value = checksum;
+        recordCommand.Parameters.AddWithValue("appliedAt", timeProvider.GetUtcNow());
         await recordCommand.ExecuteNonQueryAsync(cancellationToken);
     }
 

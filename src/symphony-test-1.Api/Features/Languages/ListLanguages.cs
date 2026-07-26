@@ -1,6 +1,7 @@
 using Dapper;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Npgsql;
+using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Languages;
 
@@ -16,8 +17,8 @@ public static class ListLanguages
         Guid Id,
         string Name,
         string Code,
-        DateTime CreatedAt,
-        DateTime UpdatedAt);
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
 
     public static void Map(RouteGroupBuilder group)
     {
@@ -46,8 +47,15 @@ public static class ListLanguages
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var command = new CommandDefinition(sql, cancellationToken: cancellationToken);
-        var languages = (await connection.QueryAsync<Response>(command)).AsList();
+        var languages = (await connection.QueryAsync<DatabaseResponse>(command))
+            .Select(ToResponse)
+            .ToList();
 
         return TypedResults.Ok(languages);
     }
+
+    private sealed record DatabaseResponse(Guid Id, string Name, string Code, DateTime CreatedAt, DateTime UpdatedAt);
+
+    private static Response ToResponse(DatabaseResponse value) =>
+        new(value.Id, value.Name, value.Code, UtcInstant.FromDatabase(value.CreatedAt), UtcInstant.FromDatabase(value.UpdatedAt));
 }

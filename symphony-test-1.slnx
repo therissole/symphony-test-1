@@ -8,6 +8,9 @@
     <Project Path="src/symphony-test-1.Web/symphony-test-1.Web.csproj" />
   </Folder>
   <Folder Name="/tests/" />
+  <Folder Name="/tests/acceptance/">
+    <Project Path="tests/acceptance/symphony-test-1.AcceptanceTests/symphony-test-1.AcceptanceTests.csproj" />
+  </Folder>
   <Folder Name="/tests/e2e/">
     <Project Path="tests/e2e/symphony-test-1.E2ETests/symphony-test-1.E2ETests.csproj" />
   </Folder>

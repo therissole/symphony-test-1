@@ -40,6 +40,21 @@ else
                           Margin="Margin.Dense"
                           Class="data-toolbar__search"
                           data-testid="greeting-search" />
+            <MudSelect T="bool?" @bind-Value="_formalFilter"
+                       Label="Style" Variant="Variant.Outlined" Margin="Margin.Dense"
+                       Clearable="true" data-testid="greeting-style-filter">
+                <MudSelectItem T="bool?" Value="@((bool?)true)">Formal</MudSelectItem>
+                <MudSelectItem T="bool?" Value="@((bool?)false)">Informal</MudSelectItem>
+            </MudSelect>
+            <MudDatePicker @bind-Date="_createdFrom"
+                           Label="Created from" Margin="Margin.Dense"
+                           Clearable="true" data-testid="greeting-created-from" />
+            <MudDatePicker @bind-Date="_createdTo"
+                           Label="Created to" Margin="Margin.Dense"
+                           Clearable="true" data-testid="greeting-created-to" />
+            <MudButton Variant="Variant.Outlined" OnClick="LoadAsync" data-testid="apply-greeting-filters">
+                Apply filters
+            </MudButton>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
                 @_greetings.Count @(_greetings.Count == 1 ? "greeting" : "greetings")
             </MudText>
@@ -115,6 +130,9 @@ else
     private readonly CancellationTokenSource _disposeToken = new();
     private List<GreetingRow> _greetings = [];
     private string? _search;
+    private bool? _formalFilter;
+    private DateTime? _createdFrom;
+    private DateTime? _createdTo;
     private string? _error;
     private bool _loading = true;
     private bool _createActionHandled;
@@ -141,7 +159,7 @@ else
         try
         {
             var greetings = await Http.GetFromJsonAsync<List<GreetingResponse>>(
-                "api/greetings/",
+                BuildGreetingQuery(),
                 _disposeToken.Token) ?? [];
             var languages = (await Http.GetFromJsonAsync<List<LanguageReference>>(
                 "api/languages/",
@@ -190,6 +208,32 @@ else
         _createActionHandled = true;
         await CreateAsync();
     }
+
+    private string BuildGreetingQuery()
+    {
+        var parameters = new List<string>();
+        if (_formalFilter is bool formal)
+        {
+            parameters.Add($"formal={formal.ToString().ToLowerInvariant()}");
+        }
+
+        if (_createdFrom is DateTime createdFrom)
+        {
+            parameters.Add($"createdFrom={Uri.EscapeDataString(ToUtcInstant(createdFrom).ToString("O"))}");
+        }
+
+        if (_createdTo is DateTime createdTo)
+        {
+            parameters.Add($"createdTo={Uri.EscapeDataString(ToUtcInstant(createdTo).AddDays(1).ToString("O"))}");
+        }
+
+        return parameters.Count == 0
+            ? "api/greetings/"
+            : $"api/greetings/?{string.Join("&", parameters)}";
+    }
+
+    private static DateTimeOffset ToUtcInstant(DateTime date) =>
+        new(DateTime.SpecifyKind(date.Date, DateTimeKind.Utc));
 
     private async Task CreateAsync()
     {
@@ -272,8 +316,8 @@ else
         Guid LanguageId,
         string GreetingText,
         bool Formal,
-        DateTime CreatedAt,
-        DateTime UpdatedAt);
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
 
     private sealed record LanguageReference(Guid Id, string Name, string Code);
 
@@ -284,6 +328,6 @@ else
         bool Formal,
         string LanguageName,
         string LanguageCode,
-        DateTime CreatedAt,
-        DateTime UpdatedAt);
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
 }

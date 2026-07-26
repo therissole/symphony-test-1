@@ -25,6 +25,8 @@ operation owns its route, contract, validation, handler, SQL, mapping, and expec
 - JWT bearer validation and authenticated administration API boundaries
 - Aspire 13.4 AppHost orchestration for the gateway, Web client, API, Keycloak, PostgreSQL, and database migrations
 - NUnit architecture, unit, integration, bUnit component, and Playwright browser tests
+- Request-slice LightBDD acceptance tests using API and browser protocol drivers by default
+- Scenario-isolated synthetic data and deterministic business time through `TimeProvider`
 - Real PostgreSQL tests through Testcontainers
 - Versioned, checksum-verified SQL migrations and a complete Docker Compose fallback
 - Repository instructions, custom agents, and a reusable VSA agent skill
@@ -94,6 +96,7 @@ src/symphony-test-1.ServiceDefaults/
 
 tests/
 ├── unit/          # deterministic rules and mechanical architecture checks
+├── acceptance/    # deployed-system LightBDD specifications and protocol drivers
 ├── ui/            # fast bUnit component states
 ├── integration/   # every slice through HTTP + real PostgreSQL
 └── e2e/           # API and Playwright workflows spanning multiple slices
@@ -127,7 +130,7 @@ request behavior. See [the architecture guide](docs/architecture.mdx) and the
 | Health (public) | `GET /api/health` |
 | Authentication bootstrap (public) | `GET /api/authentication/configuration` |
 | Languages | `GET /api/languages`, `GET /api/languages/{id}`, `POST /api/languages`, `PUT /api/languages/{id}`, `DELETE /api/languages/{id}` |
-| Greetings | `GET /api/greetings`, `GET /api/greetings/{id}`, `GET /api/greetings/by-language/{code}`, `POST /api/greetings`, `PUT /api/greetings/{id}`, `DELETE /api/greetings/{id}` |
+| Greetings | `GET /api/greetings` (optional `languageId`, `formal`, `createdFrom`, `createdTo` filters), `GET /api/greetings/{id}`, `GET /api/greetings/by-language/{code}`, `POST /api/greetings`, `PUT /api/greetings/{id}`, `DELETE /api/greetings/{id}` |
 
 Language and greeting endpoints require a Keycloak access token whose audience is
 `symphony-api`. The dashboard and both management pages initiate the OIDC sign-in flow when the
@@ -229,6 +232,17 @@ dotnet list symphony-test-1.slnx package --vulnerable --include-transitive
 ```
 
 Docker must be running for integration and end-to-end tests.
+
+Run black-box API and browser acceptance specifications against a disposable Compose deployment:
+
+```powershell
+pwsh tests/acceptance/run.ps1
+```
+
+The acceptance project has no production-project references. Its generic core contains only
+scenario, protocol-matrix, and transport mechanics; each request-level feature directory owns its
+DSL and protocol drivers. It receives deployment details through environment variables, so the same
+tests can run against another implementation of the public API.
 
 ## Design choices
 

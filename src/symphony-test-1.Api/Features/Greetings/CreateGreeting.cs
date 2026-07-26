@@ -2,6 +2,7 @@ using Dapper;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Npgsql;
+using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Greetings;
 
@@ -44,8 +45,8 @@ public static class CreateGreeting
         Guid LanguageId,
         string GreetingText,
         bool Formal,
-        DateTime CreatedAt,
-        DateTime UpdatedAt);
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
 
     public static void Map(RouteGroupBuilder group)
     {
@@ -62,6 +63,7 @@ public static class CreateGreeting
         Request request,
         IValidator<Request> validator,
         NpgsqlDataSource dataSource,
+        TimeProvider timeProvider,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -73,8 +75,8 @@ public static class CreateGreeting
         }
 
         const string sql = """
-            INSERT INTO greetings (language_id, greeting_text, formal)
-            VALUES (@LanguageId, @GreetingText, @Formal)
+            INSERT INTO greetings (language_id, greeting_text, formal, created_at, updated_at)
+            VALUES (@LanguageId, @GreetingText, @Formal, @Now, @Now)
             RETURNING
                 id,
                 language_id AS LanguageId,
@@ -85,11 +87,21 @@ public static class CreateGreeting
             """;
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
-        var command = new CommandDefinition(sql, request, cancellationToken: cancellationToken);
+        var command = new CommandDefinition(
+            sql,
+            new
+            {
+                request.LanguageId,
+                request.GreetingText,
+                request.Formal,
+                Now = timeProvider.GetUtcNow()
+            },
+            cancellationToken: cancellationToken);
 
         try
         {
-            var greeting = await connection.QuerySingleAsync<Response>(command);
+            var databaseGreeting = await connection.QuerySingleAsync<DatabaseResponse>(command);
+            var greeting = ToResponse(databaseGreeting);
             logger.LogInformation(
                 "Created greeting {GreetingId} for language {LanguageId}",
                 greeting.Id,
@@ -106,4 +118,21 @@ public static class CreateGreeting
             });
         }
     }
+
+    private sealed record DatabaseResponse(
+        Guid Id,
+        Guid LanguageId,
+        string GreetingText,
+        bool Formal,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+
+    private static Response ToResponse(DatabaseResponse value) =>
+        new(
+            value.Id,
+            value.LanguageId,
+            value.GreetingText,
+            value.Formal,
+            UtcInstant.FromDatabase(value.CreatedAt),
+            UtcInstant.FromDatabase(value.UpdatedAt));
 }

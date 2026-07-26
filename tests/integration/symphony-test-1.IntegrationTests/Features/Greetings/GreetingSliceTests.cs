@@ -45,6 +45,51 @@ public class GreetingSliceTests
     }
 
     [Test]
+    public async Task ListGreetings_CanFilterByLanguageAndCreationRange()
+    {
+        var language = await CreateLanguageAsync("Time test language", "tt");
+        var start = new DateTimeOffset(2026, 7, 26, 9, 0, 0, TimeSpan.Zero);
+
+        try
+        {
+            await SetClockAsync(start);
+            var oldGreeting = await CreateGreetingAsync(language.Id, "Old greeting");
+
+            await SetClockAsync(start.AddHours(25));
+            var newGreeting = await CreateGreetingAsync(language.Id, "New greeting");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(oldGreeting.CreatedAt, Is.EqualTo(start));
+                Assert.That(newGreeting.CreatedAt, Is.EqualTo(start.AddHours(25)));
+            });
+
+            var allGreetings = await _client.GetFromJsonAsync<List<ListGreetings.Response>>("/api/greetings");
+            Assert.That(allGreetings?.Select(greeting => greeting.Id), Does.Contain(newGreeting.Id));
+
+            var byLanguageResponse = await _client.GetAsync($"/api/greetings?languageId={language.Id}");
+            Assert.That(byLanguageResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var byLanguage = await byLanguageResponse.Content.ReadFromJsonAsync<List<ListGreetings.Response>>();
+            Assert.That(byLanguage?.Select(greeting => greeting.Id), Does.Contain(newGreeting.Id));
+
+            var response = await _client.GetAsync(
+                $"/api/greetings?languageId={language.Id}&createdFrom={Uri.EscapeDataString(start.AddHours(1).ToString("O"))}&createdTo={Uri.EscapeDataString(start.AddHours(25).AddMicroseconds(1).ToString("O"))}");
+            var greetings = await response.Content.ReadFromJsonAsync<List<ListGreetings.Response>>();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(greetings?.Select(greeting => greeting.Id), Does.Contain(newGreeting.Id));
+                Assert.That(greetings?.Select(greeting => greeting.Id), Does.Not.Contain(oldGreeting.Id));
+            });
+        }
+        finally
+        {
+            await _client.DeleteAsync("/api/testing/clock");
+        }
+    }
+
+    [Test]
     public async Task GetGreeting_WhenGreetingDoesNotExist_ReturnsNotFound()
     {
         var response = await _client.GetAsync($"/api/greetings/{Guid.NewGuid()}");
@@ -154,5 +199,11 @@ public class GreetingSliceTests
         response.EnsureSuccessStatusCode();
 
         return (await response.Content.ReadFromJsonAsync<CreateGreeting.Response>())!;
+    }
+
+    private async Task SetClockAsync(DateTimeOffset utcNow)
+    {
+        var response = await _client.PutAsJsonAsync("/api/testing/clock", new { utcNow });
+        response.EnsureSuccessStatusCode();
     }
 }

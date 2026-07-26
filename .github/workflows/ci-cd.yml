@@ -49,6 +49,9 @@ jobs:
     
     - name: Run E2E Tests
       run: dotnet test tests/e2e/symphony-test-1.E2ETests/symphony-test-1.E2ETests.csproj --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=e2e-test-results.trx"
+
+    - name: Run black-box acceptance tests
+      run: pwsh tests/acceptance/run.ps1
     
     - name: Publish test results
       uses: EnricoMi/publish-unit-test-result-action@v2

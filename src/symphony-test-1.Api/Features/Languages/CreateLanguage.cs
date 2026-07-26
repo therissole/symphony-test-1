@@ -3,6 +3,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
+using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Languages;
 
@@ -45,8 +46,8 @@ public static class CreateLanguage
         Guid Id,
         string Name,
         string Code,
-        DateTime CreatedAt,
-        DateTime UpdatedAt);
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
 
     public static void Map(RouteGroupBuilder group)
     {
@@ -64,6 +65,7 @@ public static class CreateLanguage
         Request request,
         IValidator<Request> validator,
         NpgsqlDataSource dataSource,
+        TimeProvider timeProvider,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -75,8 +77,8 @@ public static class CreateLanguage
         }
 
         const string sql = """
-            INSERT INTO languages (name, code)
-            VALUES (@Name, @Code)
+            INSERT INTO languages (name, code, created_at, updated_at)
+            VALUES (@Name, @Code, @Now, @Now)
             RETURNING
                 id,
                 name,
@@ -86,11 +88,15 @@ public static class CreateLanguage
             """;
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
-        var command = new CommandDefinition(sql, request, cancellationToken: cancellationToken);
+        var command = new CommandDefinition(
+            sql,
+            new { request.Name, request.Code, Now = timeProvider.GetUtcNow() },
+            cancellationToken: cancellationToken);
 
         try
         {
-            var language = await connection.QuerySingleAsync<Response>(command);
+            var databaseLanguage = await connection.QuerySingleAsync<DatabaseResponse>(command);
+            var language = ToResponse(databaseLanguage);
             logger.LogInformation(
                 "Created language {LanguageId} with code {LanguageCode}",
                 language.Id,
@@ -109,4 +115,9 @@ public static class CreateLanguage
             });
         }
     }
+
+    private sealed record DatabaseResponse(Guid Id, string Name, string Code, DateTime CreatedAt, DateTime UpdatedAt);
+
+    private static Response ToResponse(DatabaseResponse value) =>
+        new(value.Id, value.Name, value.Code, UtcInstant.FromDatabase(value.CreatedAt), UtcInstant.FromDatabase(value.UpdatedAt));
 }

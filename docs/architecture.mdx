@@ -264,6 +264,7 @@ appropriate domain model or service. Do not impose one domain pattern on every r
 ```text
 tests/unit/Features/             deterministic slice rules
 tests/unit/Architecture/         mechanical dependency and slice-shape rules
+tests/acceptance/Features/       deployed-system executable specifications
 tests/ui/Features/               fast bUnit component states
 tests/integration/Features/      every slice through HTTP and PostgreSQL
 tests/integration/Infrastructure gateway and published WASM route behavior
@@ -278,6 +279,14 @@ reintroducing horizontal layers. bUnit covers fast rendering states, while Playw
 gateway-hosted WASM UI through every CRUD operation against a Testcontainers PostgreSQL database.
 Authentication boundary tests use a test-only scheme to prove both anonymous rejection and public
 health behavior without weakening production bearer validation.
+
+Acceptance specifications are a separate black-box layer. Each request-level feature directory
+owns its LightBDD acceptance tests, domain DSL, and API and/or browser protocol drivers; `Core/`
+contains only generic fixture, transport, and scenario mechanics. Fixtures run both protocols by
+default and opt out explicitly only for a channel-specific contract. The acceptance project has no
+production project references and owns only its external JSON representations. Scenario aliases
+resolve to unique physical values, while server-issued identifiers remain inside the driver. See
+`docs/atdd-approach.md` for the test-data and time-control conventions.
 
 ## Observability boundary
 

@@ -255,8 +255,8 @@ else
         Guid Id,
         string Name,
         string Code,
-        DateTime CreatedAt,
-        DateTime UpdatedAt);
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
 
     private sealed record GreetingReference(Guid Id, Guid LanguageId);
 
@@ -265,6 +265,6 @@ else
         string Name,
         string Code,
         int GreetingCount,
-        DateTime CreatedAt,
-        DateTime UpdatedAt);
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
 }

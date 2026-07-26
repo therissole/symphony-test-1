@@ -1,0 +1,10 @@
+services:
+  keycloak:
+    environment:
+      KC_HOSTNAME: "http://localhost:${SYMPHONY_KEYCLOAK_PORT}"
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Acceptance
+      Testing__EnableClockControl: "true"

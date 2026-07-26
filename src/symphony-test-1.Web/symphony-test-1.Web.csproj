@@ -6,7 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>SymphonyTest1.Web</AssemblyName>
     <RootNamespace>SymphonyTest1.Web</RootNamespace>
-    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
   </PropertyGroup>
 
   <ItemGroup>

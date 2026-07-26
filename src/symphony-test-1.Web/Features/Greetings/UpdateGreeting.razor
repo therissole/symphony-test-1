@@ -175,8 +175,8 @@
         Guid LanguageId,
         string GreetingText,
         bool Formal,
-        DateTime CreatedAt,
-        DateTime UpdatedAt);
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
 
     private sealed record LanguageResponse(Guid Id, string Name, string Code);
 }

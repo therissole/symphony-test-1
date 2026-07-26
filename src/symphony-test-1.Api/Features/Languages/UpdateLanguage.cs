@@ -4,6 +4,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
+using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Languages;
 
@@ -46,8 +47,8 @@ public static class UpdateLanguage
         Guid Id,
         string Name,
         string Code,
-        DateTime CreatedAt,
-        DateTime UpdatedAt);
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
 
     public static void Map(RouteGroupBuilder group)
     {
@@ -67,6 +68,7 @@ public static class UpdateLanguage
         Request request,
         IValidator<Request> validator,
         NpgsqlDataSource dataSource,
+        TimeProvider timeProvider,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -82,7 +84,7 @@ public static class UpdateLanguage
             SET
                 name = @Name,
                 code = @Code,
-                updated_at = CURRENT_TIMESTAMP
+                updated_at = @Now
             WHERE id = @Id
             RETURNING
                 id,
@@ -95,16 +97,18 @@ public static class UpdateLanguage
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var command = new CommandDefinition(
             sql,
-            new { Id = id, request.Name, request.Code },
+            new { Id = id, request.Name, request.Code, Now = timeProvider.GetUtcNow() },
             cancellationToken: cancellationToken);
 
         try
         {
-            var language = await connection.QuerySingleOrDefaultAsync<Response>(command);
-            if (language is null)
+            var databaseLanguage = await connection.QuerySingleOrDefaultAsync<DatabaseResponse>(command);
+            if (databaseLanguage is null)
             {
                 return TypedResults.NotFound();
             }
+
+            var language = ToResponse(databaseLanguage);
 
             logger.LogInformation("Updated language {LanguageId}", id);
             return TypedResults.Ok(language);
@@ -120,4 +124,9 @@ public static class UpdateLanguage
             });
         }
     }
+
+    private sealed record DatabaseResponse(Guid Id, string Name, string Code, DateTime CreatedAt, DateTime UpdatedAt);
+
+    private static Response ToResponse(DatabaseResponse value) =>
+        new(value.Id, value.Name, value.Code, UtcInstant.FromDatabase(value.CreatedAt), UtcInstant.FromDatabase(value.UpdatedAt));
 }

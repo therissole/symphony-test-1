@@ -9,7 +9,7 @@ description: 'Independent greeting request slices and language-aware queries'
 
 | Slice | Route | Purpose |
 | --- | --- | --- |
-| `ListGreetings` | `GET /api/greetings` | Return all greetings ordered by text |
+| `ListGreetings` | `GET /api/greetings` | Return greetings ordered by text, optionally filtered by language, formality, or creation range |
 | `GetGreeting` | `GET /api/greetings/{id}` | Return one greeting |
 | `GetGreetingByLanguage` | `GET /api/greetings/by-language/{code}` | Return a purpose-built language view |
 | `CreateGreeting` | `POST /api/greetings` | Validate and create a greeting |
@@ -17,6 +17,11 @@ description: 'Independent greeting request slices and language-aware queries'
 | `DeleteGreeting` | `DELETE /api/greetings/{id}` | Delete a greeting |
 
 ## Purpose-built query
+
+`ListGreetings` accepts optional `languageId`, `formal`, `createdFrom`, and `createdTo` query
+parameters. The creation range uses RFC 3339 UTC instants, an inclusive lower bound, and an
+exclusive upper bound. The slice validates that `createdTo` is later than `createdFrom` before it
+opens a database connection.
 
 `GetGreetingByLanguage` executes one tailored join and projects directly into:
 
@@ -67,9 +72,11 @@ Deleting a language therefore deletes its greetings without cross-slice orchestr
 
 ## Tests
 
-Integration tests cover list, get/not-found, formality filtering, create/update, missing-language
-validation, and delete/not-found. End-to-end tests verify the complete language-and-greeting
-workflow and cascade deletion.
+Integration tests cover list filters, get/not-found, formality filtering, create/update,
+missing-language validation, and delete/not-found. LightBDD acceptance tests sit in request-level
+acceptance slices, defaulting to both API and browser protocol drivers without sharing application
+types. The date-range scenario is deliberately API-only because it exercises the public,
+test-environment clock contract.
 
 See the [Greetings API reference](/api-reference/endpoints/greetings/list-greetings) for exact
 contracts, status codes, and an interactive request playground.

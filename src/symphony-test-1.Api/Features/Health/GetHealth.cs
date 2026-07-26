@@ -10,7 +10,7 @@ public static class GetHealth
     /// <param name="Status">The overall health state.</param>
     /// <param name="Database">The database connectivity state.</param>
     /// <param name="Timestamp">The UTC time when the health check completed.</param>
-    public sealed record Response(string Status, string Database, DateTime Timestamp);
+    public sealed record Response(string Status, string Database, DateTimeOffset Timestamp);
 
     public static void Map(RouteGroupBuilder group)
     {
@@ -25,6 +25,7 @@ public static class GetHealth
 
     private static async Task<Results<Ok<Response>, JsonHttpResult<Response>>> Handle(
         NpgsqlDataSource dataSource,
+        TimeProvider timeProvider,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -39,19 +40,19 @@ public static class GetHealth
             if (result == 1)
             {
                 return TypedResults.Ok(
-                    new Response("Healthy", "Connected", DateTime.UtcNow));
+                    new Response("Healthy", "Connected", timeProvider.GetUtcNow()));
             }
 
             logger.LogWarning("Health check query did not return the expected result");
             return TypedResults.Json(
-                new Response("Unhealthy", "Query failed", DateTime.UtcNow),
+                new Response("Unhealthy", "Query failed", timeProvider.GetUtcNow()),
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Health check could not reach the database");
             return TypedResults.Json(
-                new Response("Unhealthy", "Unavailable", DateTime.UtcNow),
+                new Response("Unhealthy", "Unavailable", timeProvider.GetUtcNow()),
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
     }
