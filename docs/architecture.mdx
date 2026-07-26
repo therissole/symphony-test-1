@@ -83,6 +83,9 @@ src/symphony-test-1.AppHost/
 ├── Realms/                        local Keycloak realm import
 └── Themes/                        local Keycloak login-theme extension
 
+src/symphony-test-1.Gateway/
+└── Program.cs                     same-origin UI/API proxy and published WASM host
+
 src/symphony-test-1.Web/
 ├── Components/
 │   ├── Layout/                    application shell and navigation
@@ -119,11 +122,19 @@ Keeping these decisions together makes the use case understandable and changeabl
 
 ## WebAssembly UI slices
 
-The MudBlazor client is a standalone Blazor WebAssembly project referenced by the API only for
-static-asset hosting. The dependency points from host to client: the client does not reference the
-API assembly, persistence packages, or server DTOs. It calls relative `/api` routes over
-`HttpClient`, so development and deployment remain same-origin without CORS or separate endpoint
-configuration.
+The MudBlazor client is a standalone Blazor WebAssembly project and an independent Aspire resource.
+The API does not reference or host it. A small YARP gateway preserves the browser's single public
+origin: during development it proxies UI requests to the Web development server and `/api`
+requests to the API; in published deployments it serves the compiled WebAssembly assets and still
+proxies `/api`. The client does not reference the API assembly, persistence packages, or server
+DTOs. It calls relative `/api` routes over `HttpClient`, so development and deployment remain
+same-origin without CORS or browser-side endpoint configuration.
+
+This resource boundary is also the hot-reload boundary. Aspire can watch and rebuild `web`
+independently from `api`, so a UI edit no longer requires rebuilding the API's static-web-assets
+manifest. The AppHost runs both with their native `dotnet watch` development commands; its own
+restart-based watch is disabled for the normal inner loop. The gateway itself changes only when
+routing or hosting policy changes.
 
 UI use cases follow the same cohesion rule as API requests:
 
@@ -178,6 +189,7 @@ Shared code is intentionally small:
 | Global Problem Details | Unexpected failures need one safe response policy |
 | OpenTelemetry logging | Exports structured `ILogger` events with active trace and span context |
 | Aspire service defaults | Captures telemetry and supplies platform health and resilience |
+| Same-origin gateway | Preserves browser routing while allowing independent API and Web resources |
 | Keycloak/JWT authentication | Identity validation and request authorization are platform boundaries |
 | FluentValidation registration | Discovers internal validators while rules remain inside slices |
 | Capability route registration | Composes slices without owning their behavior |
@@ -254,7 +266,7 @@ tests/unit/Features/             deterministic slice rules
 tests/unit/Architecture/         mechanical dependency and slice-shape rules
 tests/ui/Features/               fast bUnit component states
 tests/integration/Features/      every slice through HTTP and PostgreSQL
-tests/integration/Infrastructure hosted WASM route behavior
+tests/integration/Infrastructure gateway and published WASM route behavior
 tests/e2e/Features/              API and Playwright workflows crossing slices
 ```
 
@@ -263,9 +275,22 @@ SQL, PostgreSQL constraints, and response mapping. Unit tests are reserved for d
 they do not mock nonexistent service and repository layers. Mechanical tests protect the client
 dependency direction and prevent shared resource clients/services/repositories from quietly
 reintroducing horizontal layers. bUnit covers fast rendering states, while Playwright drives the
-deployed WASM UI through every CRUD operation against a Testcontainers PostgreSQL database.
+gateway-hosted WASM UI through every CRUD operation against a Testcontainers PostgreSQL database.
 Authentication boundary tests use a test-only scheme to prove both anonymous rejection and public
 health behavior without weakening production bearer validation.
+
+## Observability boundary
+
+The gateway uses the same Aspire service defaults as the API. Requests for the host page, static
+assets, and proxied `/api` routes therefore appear as gateway server spans. API requests carry the
+distributed trace context onward, so Aspire can show the browser-facing gateway request and API
+work in one trace.
+
+The WebAssembly runtime executes inside the browser, not inside the Aspire-managed Web development
+server. Component rendering, client-side navigation, and UI events therefore do not automatically
+produce Aspire spans. Capturing those semantic operations requires deliberate browser-side
+OpenTelemetry instrumentation and a suitable telemetry intake; separating the Web resource
+improves server-boundary visibility but does not itself instrument browser execution.
 
 The migration harness applies all ordered `V*.sql` files, so adding a migration does not require
 editing test infrastructure.

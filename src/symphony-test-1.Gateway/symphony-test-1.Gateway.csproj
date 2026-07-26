@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>SymphonyTest1.Gateway</AssemblyName>
+    <RootNamespace>SymphonyTest1.Gateway</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.10" />
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\symphony-test-1.ServiceDefaults\symphony-test-1.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\symphony-test-1.Web\symphony-test-1.Web.csproj" />
+  </ItemGroup>
+
+</Project>

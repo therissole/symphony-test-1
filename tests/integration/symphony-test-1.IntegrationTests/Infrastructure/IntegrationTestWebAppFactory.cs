@@ -28,8 +28,6 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // Testing is not a development environment, so opt into referenced static web assets.
-        builder.UseStaticWebAssets();
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<NpgsqlDataSource>();

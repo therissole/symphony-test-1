@@ -15,8 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\symphony-test-1.Api\symphony-test-1.Api.csproj" />
     <ProjectReference Include="..\symphony-test-1.DatabaseMigrations\symphony-test-1.DatabaseMigrations.csproj" />
+    <ProjectReference Include="..\symphony-test-1.Gateway\symphony-test-1.Gateway.csproj" />
   </ItemGroup>
 
 </Project>

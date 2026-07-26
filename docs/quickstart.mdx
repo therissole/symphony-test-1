@@ -26,7 +26,7 @@ The Aspire AppHost starts:
 - PostgreSQL 18 with environment-local ephemeral data
 - Keycloak with the committed local `symphony` realm
 - A one-shot .NET migration resource
-- The API and hosted Blazor WebAssembly administration UI after all migrations complete
+- The API, Web development server, and same-origin gateway after all migrations complete
   successfully
 - The local Mintlify documentation preview
 
@@ -39,10 +39,10 @@ request to the running API.
 The endpoint pages are generated from the API's live Development OpenAPI document each time the
 documentation resource starts.
 
-Use the API endpoint to exercise the slices:
+Use the administration endpoint to exercise the slices through the same public boundary as the UI:
 
 ```bash
-curl <api-endpoint>/api/health
+curl <Symphony-administration-endpoint>/api/health
 ```
 
 Health is public. Language and greeting calls require a bearer token obtained through the
@@ -66,37 +66,51 @@ Use a separate browser profile for each environment when signing into both at on
 cookies are scoped by host and path rather than port, so two `localhost` instances using the same
 realm name otherwise share browser cookie scope even though their service ports are different.
 
-The Development OpenAPI document is at `<api-endpoint>/openapi/v1.json`. Aspire also exposes
+The Development OpenAPI document is available from the direct API resource at
+`<api-endpoint>/openapi/v1.json`. Aspire also exposes
 platform readiness and liveness endpoints at `/health` and `/alive`; the existing `/api/health`
 slice remains the database-aware public API contract.
 
 ## Fast edit/verify loop
 
 Use this workflow when iterating on a slice. The AppHost preserves the isolated environment and
-its dynamically allocated endpoints while watching its C# project resources:
+its dynamically allocated endpoints while the API and Web resources run their native
+non-interactive `dotnet watch` loops:
 
 ```powershell
-aspire config set features.defaultWatchEnabled true
 aspire run
 ```
+
+If a Windows agent process cannot resolve `aspire`, run
+`& "$env:USERPROFILE\.aspire\bin\aspire.exe" run`.
 
 Keep the watcher open. The dashboard and startup output identify the isolated **Symphony
 administration** endpoint for that run. Do not manually tear down and recreate PostgreSQL,
 Keycloak, or migrations after an application or UI edit, so an agent can verify a change directly
-instead of rebuilding the stack. If a change is not visible, rebuild only the API resource from the
-dashboard or with `aspire resource api rebuild`:
+instead of rebuilding the stack. The API and Web client are separate watched resources. If a
+watcher cannot apply an edit, restart only the affected resource:
 
 ```powershell
+aspire resource api stop
+aspire resource api start
+aspire resource web stop
+aspire resource web start
 Invoke-RestMethod <Symphony-administration-endpoint>/api/health
 ```
 
-Open or reload the same administration endpoint to test the hosted browser client against that
-same API. After Aspire restarts or rebuilds a resource, wait for the health request to succeed
+Open or reload the same administration endpoint to test the browser client against that same API.
+The gateway proxies UI requests to the Web development server, including its development
+connections. After Aspire restarts or rebuilds a resource, wait for the health request to succeed
 before navigating or reloading. Stop the watcher with Ctrl+C when done. This workflow does not
 hard-code ports, so it can run alongside other isolated development or test environments.
 
+The repository disables Aspire's AppHost-wide default watch. That mode is restart-based and
+re-evaluates the whole topology, which is useful for `AppHost.cs` changes but is not the tight
+API/UI loop. Stop and rerun `aspire run` after changing the application model.
+
 The Compose command below is a headless image build for reproducible checks. It is not the
-hot-reload loop: `docker compose up --build` bakes the current source into the API image, so it
+hot-reload loop: `docker compose up --build` bakes the current source into the API and gateway
+images, so it
 needs a rebuild to observe a source edit.
 
 ## Run with Docker Compose
@@ -117,6 +131,18 @@ browser-visible Keycloak authority from `SYMPHONY_KEYCLOAK_PORT`. Its committed 
 all redirect URIs and web origins for local development only because Keycloak does not support a
 wildcard in the URI port. Replace those wildcards with exact deployed URLs outside local
 development.
+
+## Aspire traces and browser telemetry
+
+The gateway uses the shared OpenTelemetry defaults. Aspire therefore shows server spans for UI
+page and static-asset requests at the gateway, plus correlated gateway and API spans for `/api`
+calls. This makes the browser-facing boundary visible even though the WebAssembly project executes
+in the browser.
+
+Blazor component rendering, client-side route changes, and browser events do not automatically
+become Aspire spans. Add browser-side OpenTelemetry and an authenticated telemetry intake only if
+that finer-grained product telemetry is needed; it is separate from the hosting and hot-reload
+architecture.
 
 ## Run tests
 

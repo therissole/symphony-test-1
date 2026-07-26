@@ -3,6 +3,6 @@
     "path": "src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj"
   },
   "features": {
-    "defaultWatchEnabled": "true"
+    "defaultWatchEnabled": "false"
   }
 }

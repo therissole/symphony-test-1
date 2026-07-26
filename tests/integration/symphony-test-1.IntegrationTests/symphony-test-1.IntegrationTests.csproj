@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\symphony-test-1.Api\symphony-test-1.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\symphony-test-1.Gateway\symphony-test-1.Gateway.csproj" />
   </ItemGroup>
 
 </Project>

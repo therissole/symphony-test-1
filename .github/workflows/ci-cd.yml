@@ -80,7 +80,7 @@ jobs:
     - name: Start Aspire application
       run: |
         aspire start --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --isolated --non-interactive
-        aspire wait api --status healthy --timeout 420 --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --non-interactive || {
+        aspire wait gateway --status healthy --timeout 420 --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --non-interactive || {
           aspire describe --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --format Json --non-interactive
           exit 1
         }
@@ -88,22 +88,22 @@ jobs:
     - name: Verify application boundary
       shell: bash
       run: |
-        api_description="$(aspire describe api --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --format Json --non-interactive)"
+        gateway_description="$(aspire describe gateway --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --format Json --non-interactive)"
 
-        api_url="$(jq -r '.resources[0].urls[] | select(.name == "https") | .url' <<< "$api_description")"
-        echo "API URL: $api_url"
+        gateway_url="$(jq -r '.resources[0].urls[] | select(.name == "https") | .url' <<< "$gateway_description")"
+        echo "Gateway URL: $gateway_url"
 
-        test -n "$api_url"
+        test -n "$gateway_url"
 
-        root_status="$(curl --insecure --output /dev/null --silent --write-out '%{http_code}' "$api_url/")"
-        health_status="$(curl --insecure --output /dev/null --silent --write-out '%{http_code}' "$api_url/api/health")"
+        root_status="$(curl --insecure --output /dev/null --silent --write-out '%{http_code}' "$gateway_url/")"
+        health_status="$(curl --insecure --output /dev/null --silent --write-out '%{http_code}' "$gateway_url/api/health")"
         echo "Root status: $root_status"
         echo "Health status: $health_status"
         test "$root_status" -ge 200 -a "$root_status" -lt 400
         test "$health_status" = "200"
 
         for endpoint in /api/languages /api/greetings /api/greetings/by-language/en; do
-          status="$(curl --insecure --output /dev/null --silent --write-out '%{http_code}' "$api_url$endpoint")"
+          status="$(curl --insecure --output /dev/null --silent --write-out '%{http_code}' "$gateway_url$endpoint")"
           echo "$endpoint status: $status"
           test "$status" = "401"
         done

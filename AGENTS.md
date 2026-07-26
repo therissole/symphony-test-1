@@ -53,7 +53,7 @@ Use `.github/skills/build-vertical-slice/SKILL.md` for feature work.
   not exist.
 - Integration-test each slice through HTTP against the Testcontainers PostgreSQL database.
 - Use end-to-end tests for workflows spanning multiple slices.
-- Use bUnit for component states and Playwright for browser workflows over the hosted WASM app.
+- Use bUnit for component states and Playwright for browser workflows through the gateway.
 - Preserve the mechanical architecture tests that protect client dependency direction and slice
   boundaries.
 - Cover success, validation, not-found, conflict, and database-constraint behavior where relevant.
@@ -72,26 +72,34 @@ Docker must be available for integration and end-to-end tests.
 
 ## Hot-reload development and live verification
 
-Use Aspire's watch workflow for an edit/verify loop. The AppHost keeps each development
-environment isolated: it allocates the application and dependency endpoints and injects their
-values rather than relying on fixed ports.
+Use Aspire with resource-native watch loops for an edit/verify loop. The AppHost keeps each
+development environment isolated: it allocates the application and dependency endpoints and
+injects their values rather than relying on fixed ports.
 
 ```powershell
-aspire config set features.defaultWatchEnabled true
 aspire run
 ```
 
+If the installed CLI is not visible on PATH in a Windows agent process, invoke
+`& "$env:USERPROFILE\.aspire\bin\aspire.exe" run` instead.
+
 Keep the watcher open for the task and use the dashboard or startup output to obtain that run's
-**Symphony administration** endpoint. Aspire watches the C# AppHost and project resources. Do not
+**Symphony administration** endpoint. The AppHost starts `api` and `web` with non-interactive
+`dotnet watch` commands. Do not
 manually tear down and recreate PostgreSQL, Keycloak, or migrations after an application or UI
-edit. If an expected change is not visible, use the dashboard or `aspire resource api rebuild` to
-rebuild only the API resource, then verify again.
+edit. If an expected change is not visible, stop and start only its resource with
+`aspire resource <resource-name> stop` and `aspire resource <resource-name> start`.
 
 With the watcher running, request `<Symphony administration endpoint>/api/health` for an immediate
-unauthenticated API check and navigate or reload the same endpoint in a browser to verify hosted
-WASM UI changes. When Aspire reports a restart or rebuild, wait for the endpoint to respond before
+unauthenticated API check and navigate or reload the same endpoint in a browser to verify
+WebAssembly UI changes through the gateway. When Aspire reports a restart or rebuild, wait for the
+endpoint to respond before
 checking; do not restart the stack. Stop the watcher with Ctrl+C when the task ends; leave the
 dependency containers running if another agent may continue the task.
+
+Repository-local AppHost-wide watch is disabled because it is restart-based and re-creates the
+whole topology. After an AppHost model change, stop and rerun `aspire run`; do not use that
+topology-edit behavior as the API/UI inner loop.
 
 ## Documentation and Guidance
 

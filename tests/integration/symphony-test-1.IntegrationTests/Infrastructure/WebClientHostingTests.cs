@@ -5,14 +5,13 @@ namespace SymphonyTest1.IntegrationTests.Infrastructure;
 [TestFixture]
 public class WebClientHostingTests
 {
-    private IntegrationTestWebAppFactory _factory = null!;
+    private GatewayTestWebAppFactory _factory = null!;
     private HttpClient _client = null!;
 
     [OneTimeSetUp]
-    public async Task OneTimeSetUp()
+    public void OneTimeSetUp()
     {
-        _factory = new IntegrationTestWebAppFactory();
-        await _factory.StartAsync();
+        _factory = new GatewayTestWebAppFactory();
         _client = _factory.CreateClient();
     }
 
@@ -20,7 +19,6 @@ public class WebClientHostingTests
     public async Task OneTimeTearDown()
     {
         _client.Dispose();
-        await _factory.StopAsync();
         await _factory.DisposeAsync();
     }
 

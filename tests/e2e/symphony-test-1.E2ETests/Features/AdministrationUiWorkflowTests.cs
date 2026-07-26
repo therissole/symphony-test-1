@@ -7,7 +7,9 @@ namespace SymphonyTest1.E2ETests.Features;
 [NonParallelizable]
 public sealed class AdministrationUiWorkflowTests
 {
-    private IntegrationTestWebAppFactory _factory = null!;
+    private IntegrationTestWebAppFactory _apiFactory = null!;
+    private GatewayTestWebAppFactory _gatewayFactory = null!;
+    private HttpClient _apiClient = null!;
     private HttpClient _hostClient = null!;
     private IPlaywright _playwright = null!;
     private IBrowser _browser = null!;
@@ -16,12 +18,15 @@ public sealed class AdministrationUiWorkflowTests
     [OneTimeSetUp]
     public async Task OneTimeSetUp()
     {
-        _factory = new IntegrationTestWebAppFactory();
-        _factory.UseKestrel(0);
-        await _factory.StartAsync();
+        _apiFactory = new IntegrationTestWebAppFactory();
+        _apiFactory.UseKestrel(0);
+        await _apiFactory.StartAsync();
 
-        // Creating the client starts Kestrel and exposes its dynamically assigned address.
-        _hostClient = _factory.CreateClient();
+        // Creating each client starts Kestrel and exposes its dynamically assigned address.
+        _apiClient = _apiFactory.CreateClient();
+        _gatewayFactory = new GatewayTestWebAppFactory(_apiClient.BaseAddress);
+        _gatewayFactory.UseKestrel(0);
+        _hostClient = _gatewayFactory.CreateClient();
         _playwright = await Playwright.CreateAsync();
         _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
         {
@@ -37,8 +42,10 @@ public sealed class AdministrationUiWorkflowTests
         await _browser.CloseAsync();
         _playwright.Dispose();
         _hostClient.Dispose();
-        await _factory.StopAsync();
-        await _factory.DisposeAsync();
+        _apiClient.Dispose();
+        await _gatewayFactory.DisposeAsync();
+        await _apiFactory.StopAsync();
+        await _apiFactory.DisposeAsync();
     }
 
     [Test]

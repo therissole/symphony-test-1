@@ -61,7 +61,8 @@ named Razor components under `src/symphony-test-1.Web/Features/<Capability>/`.
 
 1. Keep the `HttpClient` operation, smallest local request/response records, loading state, form
    feedback, and expected error handling in the component.
-2. Use relative `/api` routes; the API hosts the WASM static assets and supplies the same origin.
+2. Use relative `/api` routes; the gateway supplies the same origin while the API and Web client
+   remain independently runnable resources.
 3. Do not reference the API assembly, persistence packages, server DTOs, or a resource-wide API
    client/service from the WASM project.
 4. Share only stable presentation mechanics in `Components/` and protocol mechanics such as RFC
