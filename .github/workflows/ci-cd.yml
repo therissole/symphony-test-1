@@ -80,7 +80,10 @@ jobs:
     - name: Start Aspire application
       run: |
         aspire start --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --isolated --non-interactive
-        aspire wait api --status healthy --timeout 180 --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --non-interactive
+        aspire wait api --status healthy --timeout 420 --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --non-interactive || {
+          aspire describe --apphost src/symphony-test-1.AppHost/symphony-test-1.AppHost.csproj --format Json --non-interactive
+          exit 1
+        }
 
     - name: Verify application boundary
       shell: bash
