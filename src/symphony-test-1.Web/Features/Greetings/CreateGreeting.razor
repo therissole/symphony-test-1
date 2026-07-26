@@ -1,0 +1,172 @@
+@inject HttpClient Http
+
+<MudDialog>
+    <DialogContent>
+        @if (_loading)
+        {
+            <LoadingPanel Message="Loading languages…" />
+        }
+        else if (_loadError is not null)
+        {
+            <ErrorPanel Message="@_loadError" Retry="LoadLanguagesAsync" />
+        }
+        else
+        {
+            <MudForm @ref="_form">
+                <MudStack Spacing="3">
+                    @if (_generalError is not null)
+                    {
+                        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+                            @_generalError
+                        </MudAlert>
+                    }
+                    <MudSelect T="Guid?"
+                               @bind-Value="_languageId"
+                               Label="Language"
+                               Required="true"
+                               RequiredError="Language is required."
+                               Error="@(_languageError is not null)"
+                               ErrorText="@_languageError"
+                               Variant="Variant.Outlined"
+                               data-testid="greeting-language">
+                        @foreach (var language in _languages)
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)language.Id)">
+                                @language.Name (@language.Code)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudTextField @bind-Value="_greetingText"
+                                  Label="Greeting"
+                                  Required="true"
+                                  RequiredError="Greeting text is required."
+                                  MaxLength="255"
+                                  Counter="255"
+                                  Lines="3"
+                                  Error="@(_greetingTextError is not null)"
+                                  ErrorText="@_greetingTextError"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined"
+                                  data-testid="greeting-text" />
+                    <MudSwitch T="bool" @bind-Value="_formal" Color="Color.Primary"
+                               Label="Formal greeting"
+                               data-testid="greeting-formal" />
+                </MudStack>
+            </MudForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_saving">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="SaveAsync"
+                   Disabled="@(_loading || _loadError is not null || _saving)"
+                   data-testid="save-greeting">
+            @if (_saving)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+            }
+            Create
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private MudForm? _form;
+    private List<LanguageResponse> _languages = [];
+    private Guid? _languageId;
+    private string _greetingText = string.Empty;
+    private bool _formal;
+    private bool _loading = true;
+    private bool _saving;
+    private string? _loadError;
+    private string? _languageError;
+    private string? _greetingTextError;
+    private string? _generalError;
+
+    protected override Task OnInitializedAsync() => LoadLanguagesAsync();
+
+    private async Task LoadLanguagesAsync()
+    {
+        _loading = true;
+        _loadError = null;
+
+        try
+        {
+            _languages = await Http.GetFromJsonAsync<List<LanguageResponse>>("api/languages/") ?? [];
+            if (_languages.Count == 0)
+            {
+                _loadError = "Create a language before adding a greeting.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _loadError = "Languages could not be loaded. Check the API connection and try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form!.ValidateAsync();
+        if (!_form.IsValid || _languageId is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        ClearErrors();
+
+        try
+        {
+            var request = new Request(_languageId.Value, _greetingText.Trim(), _formal);
+            using var response = await Http.PostAsJsonAsync("api/greetings/", request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                ApplyProblem(await ApiProblemReader.ReadAsync(response, CancellationToken.None));
+                return;
+            }
+
+            var created = await response.Content.ReadFromJsonAsync<Response>();
+            MudDialog.Close(DialogResult.Ok(created?.Id));
+        }
+        catch (HttpRequestException)
+        {
+            _generalError = "The greeting could not be created. Check the API connection and try again.";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void ApplyProblem(ApiProblem problem)
+    {
+        _languageError = problem.GetFieldError("languageId");
+        _greetingTextError = problem.GetFieldError("greetingText");
+        _generalError = _languageError is null && _greetingTextError is null ? problem.Message : null;
+    }
+
+    private void ClearErrors() =>
+        (_languageError, _greetingTextError, _generalError) = (null, null, null);
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private sealed record Request(Guid LanguageId, string GreetingText, bool Formal);
+
+    private sealed record Response(
+        Guid Id,
+        Guid LanguageId,
+        string GreetingText,
+        bool Formal,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+
+    private sealed record LanguageResponse(Guid Id, string Name, string Code);
+}

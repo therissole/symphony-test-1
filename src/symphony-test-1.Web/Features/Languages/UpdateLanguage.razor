@@ -1,0 +1,164 @@
+@inject HttpClient Http
+
+<MudDialog>
+    <DialogContent>
+        @if (_loading)
+        {
+            <LoadingPanel Message="Loading language…" />
+        }
+        else if (_loadError is not null)
+        {
+            <ErrorPanel Message="@_loadError" />
+        }
+        else
+        {
+            <MudForm @ref="_form">
+                <MudStack Spacing="3">
+                    @if (_generalError is not null)
+                    {
+                        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+                            @_generalError
+                        </MudAlert>
+                    }
+                    <MudTextField @bind-Value="_name"
+                                  Label="Name"
+                                  Required="true"
+                                  RequiredError="Name is required."
+                                  MaxLength="100"
+                                  Counter="100"
+                                  Error="@(_nameError is not null)"
+                                  ErrorText="@_nameError"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined"
+                                  data-testid="language-name" />
+                    <MudTextField @bind-Value="_code"
+                                  Label="Code"
+                                  Required="true"
+                                  RequiredError="Code is required."
+                                  MaxLength="10"
+                                  Counter="10"
+                                  Error="@(_codeError is not null)"
+                                  ErrorText="@_codeError"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined"
+                                  data-testid="language-code" />
+                </MudStack>
+            </MudForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_saving">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="SaveAsync"
+                   Disabled="@(_loading || _loadError is not null || _saving)"
+                   data-testid="save-language">
+            @if (_saving)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+            }
+            Save changes
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired]
+    public Guid Id { get; set; }
+
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private MudForm? _form;
+    private string _name = string.Empty;
+    private string _code = string.Empty;
+    private bool _loading = true;
+    private bool _saving;
+    private string? _loadError;
+    private string? _nameError;
+    private string? _codeError;
+    private string? _generalError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            using var response = await Http.GetAsync($"api/languages/{Id}");
+            if (!response.IsSuccessStatusCode)
+            {
+                _loadError = response.StatusCode == System.Net.HttpStatusCode.NotFound
+                    ? "This language no longer exists."
+                    : (await ApiProblemReader.ReadAsync(response, CancellationToken.None)).Message;
+                return;
+            }
+
+            var language = await response.Content.ReadFromJsonAsync<Response>();
+            if (language is not null)
+            {
+                _name = language.Name;
+                _code = language.Code;
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _loadError = "The language could not be loaded. Check the API connection and try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form!.ValidateAsync();
+        if (!_form.IsValid)
+        {
+            return;
+        }
+
+        _saving = true;
+        ClearErrors();
+
+        try
+        {
+            var request = new Request(_name.Trim(), _code.Trim());
+            using var response = await Http.PutAsJsonAsync($"api/languages/{Id}", request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                ApplyProblem(await ApiProblemReader.ReadAsync(response, CancellationToken.None));
+                return;
+            }
+
+            MudDialog.Close(DialogResult.Ok(Id));
+        }
+        catch (HttpRequestException)
+        {
+            _generalError = "The language could not be updated. Check the API connection and try again.";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void ApplyProblem(ApiProblem problem)
+    {
+        _nameError = problem.GetFieldError("name");
+        _codeError = problem.GetFieldError("code");
+        _generalError = _nameError is null && _codeError is null ? problem.Message : null;
+    }
+
+    private void ClearErrors() => (_nameError, _codeError, _generalError) = (null, null, null);
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private sealed record Request(string Name, string Code);
+
+    private sealed record Response(
+        Guid Id,
+        string Name,
+        string Code,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+}

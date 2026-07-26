@@ -5,6 +5,9 @@ description: 'Greeting request and response contracts'
 
 # Greetings API
 
+Every greeting endpoint requires a valid Keycloak bearer token with the `symphony-api` audience.
+Anonymous requests return `401 Unauthorized`.
+
 ## Greeting response
 
 ```json
@@ -48,7 +51,8 @@ Returns all greetings ordered by greeting text.
 </ParamField>
 
 ```bash
-curl "http://localhost:8080/api/greetings/by-language/en?formal=true"
+curl "http://localhost:8081/api/greetings/by-language/en?formal=true" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 Returns:
@@ -82,7 +86,8 @@ Returns:
 </ParamField>
 
 ```bash
-curl -X POST http://localhost:8080/api/greetings \
+curl -X POST http://localhost:8081/api/greetings \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
     "languageId":"3fa85f64-5717-4562-b3fc-2c963f66afa6",

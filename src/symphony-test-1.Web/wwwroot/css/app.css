@@ -1,0 +1,356 @@
+html,
+body {
+    min-height: 100%;
+    margin: 0;
+    background: #f4f6f9;
+    color: #172033;
+    font-family: Inter, "Segoe UI", Roboto, sans-serif;
+}
+
+a {
+    color: inherit;
+}
+
+.app-bar {
+    border-bottom: 1px solid #dfe4ec;
+    padding-inline: 20px;
+}
+
+.app-bar__menu {
+    display: none;
+}
+
+.brand-mark {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    margin-right: 12px;
+    place-items: center;
+    border-radius: 9px;
+    background: #355f9d;
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.brand-name {
+    white-space: nowrap;
+}
+
+.reference-chip {
+    margin-left: 16px;
+}
+
+.profile-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 20px;
+    border-left: 1px solid #dfe4ec;
+}
+
+.profile-placeholder__text {
+    min-width: 118px;
+    line-height: 1.1;
+}
+
+.app-drawer {
+    border-right: 1px solid #dfe4ec !important;
+}
+
+.app-drawer__content {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    padding: 22px 14px 18px;
+}
+
+.app-nav__label {
+    display: block;
+    padding: 0 14px 7px;
+    color: #98a2b3;
+    font-weight: 700;
+    letter-spacing: .08em;
+}
+
+.app-nav .mud-nav-link {
+    position: relative;
+    min-height: 44px;
+    margin: 3px 0;
+    border-radius: 7px;
+    color: #475467;
+    font-weight: 500;
+}
+
+.app-nav .mud-nav-link:hover {
+    background: #f5f7fa;
+}
+
+.app-nav .mud-nav-link.active {
+    background: #f0f4f9;
+    color: #294f82;
+    font-weight: 600;
+}
+
+.app-nav .mud-nav-link.active::before {
+    position: absolute;
+    top: 11px;
+    bottom: 11px;
+    left: 0;
+    width: 2px;
+    border-radius: 999px;
+    background: rgba(53, 95, 157, .35);
+    content: "";
+}
+
+.reference-note {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+    padding: 14px;
+    background: #fafbfc;
+}
+
+.app-main {
+    min-height: 100vh;
+    padding: calc(68px + 30px) 34px 48px;
+}
+
+.page-header {
+    margin-bottom: 24px;
+}
+
+.page-header__content {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.page-header__actions {
+    flex: none;
+}
+
+.state-panel,
+.not-found-panel {
+    display: flex;
+    min-height: 240px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+    padding: 32px;
+    text-align: center;
+}
+
+.not-found-panel {
+    max-width: 620px;
+    margin: 10vh auto 0;
+}
+
+.data-card {
+    overflow: hidden;
+}
+
+.data-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e4e7ec;
+}
+
+.data-toolbar__search {
+    width: min(360px, 100%);
+}
+
+.row-actions {
+    white-space: nowrap;
+}
+
+.dialog-summary {
+    padding: 14px 16px;
+    border: 1px solid #e4e7ec;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.metric-card {
+    position: relative;
+    min-height: 174px;
+    padding: 22px;
+}
+
+.metric-card__icon {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border-radius: 9px;
+    background: #edf3fb;
+    color: #355f9d;
+}
+
+.metric-card .mud-typography-h4 {
+    margin: 10px 0 12px;
+}
+
+.dashboard-card {
+    height: 100%;
+    overflow: hidden;
+}
+
+.dashboard-card__header {
+    display: flex;
+    min-height: 76px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e4e7ec;
+}
+
+.quick-actions {
+    padding: 8px;
+}
+
+.detail-list {
+    display: grid;
+    grid-template-columns: minmax(110px, 160px) 1fr;
+    gap: 14px 20px;
+    margin: 0;
+}
+
+.detail-list dt {
+    color: #667085;
+    font-size: .875rem;
+}
+
+.detail-list dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+#blazor-error-ui {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    left: 18px;
+    z-index: 2000;
+    display: none;
+    max-width: 700px;
+    margin: auto;
+    padding: 14px 50px 14px 18px;
+    border-radius: 8px;
+    background: #7a271a;
+    color: #fff;
+    box-shadow: 0 8px 30px rgba(16, 24, 40, .2);
+}
+
+#blazor-error-ui .reload {
+    margin-left: 8px;
+    text-decoration: underline;
+}
+
+#blazor-error-ui .dismiss {
+    position: absolute;
+    top: 9px;
+    right: 12px;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1.3rem;
+}
+
+.loading-progress {
+    position: absolute;
+    inset: 22vh 0 auto;
+    display: block;
+    width: 7rem;
+    height: 7rem;
+    margin: auto;
+}
+
+.loading-progress circle {
+    fill: none;
+    stroke: #e4e7ec;
+    stroke-width: .55rem;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+}
+
+.loading-progress circle:last-child {
+    stroke: #355f9d;
+    stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * .8), 500%;
+}
+
+.loading-progress-text {
+    position: absolute;
+    inset: calc(22vh + 2.9rem) 0 auto;
+    text-align: center;
+    font-weight: 600;
+}
+
+.loading-progress-text::after {
+    content: var(--blazor-load-percentage-text, "Loading");
+}
+
+@media (max-width: 959.98px) {
+    .app-bar__menu {
+        display: inline-flex;
+    }
+
+    .reference-chip,
+    .profile-placeholder__name {
+        display: none;
+    }
+
+    .profile-placeholder__text {
+        min-width: auto;
+    }
+
+    .profile-placeholder {
+        padding-left: 10px;
+        border-left: 0;
+    }
+
+    .app-main {
+        padding: calc(68px + 24px) 20px 40px;
+    }
+}
+
+@media (max-width: 599.98px) {
+    .brand-name {
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .page-header__content,
+    .data-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .page-header__actions .mud-button-root {
+        width: 100%;
+    }
+
+    .data-toolbar__search {
+        width: 100%;
+    }
+
+    .detail-list {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .detail-list dd {
+        margin-bottom: 10px;
+    }
+}

@@ -56,6 +56,7 @@ public static class UpdateGreeting
             .WithDescription(
                 "Replaces the language, text, and formality of an existing greeting.")
             .Produces<Response>()
+            .Produces(StatusCodes.Status401Unauthorized)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status404NotFound);
     }

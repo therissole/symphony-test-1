@@ -1,0 +1,270 @@
+@page "/languages"
+@attribute [Authorize]
+@implements IAsyncDisposable
+@inject HttpClient Http
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Languages | Symphony Administration</PageTitle>
+
+<PageHeader Title="Languages"
+            Description="Manage the languages available to greetings.">
+    <Actions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="CreateAsync" data-testid="add-language">
+            Add language
+        </MudButton>
+    </Actions>
+</PageHeader>
+
+@if (_loading)
+{
+    <LoadingPanel Message="Loading languages…" />
+}
+else if (_error is not null)
+{
+    <ErrorPanel Message="@_error" Retry="LoadAsync" />
+}
+else
+{
+    <MudPaper Outlined="true" Class="data-card" data-testid="languages-grid">
+        <div class="data-toolbar">
+            <MudTextField @bind-Value="_search"
+                          Placeholder="Search languages"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="data-toolbar__search"
+                          data-testid="language-search" />
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @_languages.Count @(_languages.Count == 1 ? "language" : "languages")
+            </MudText>
+        </div>
+
+        <MudDataGrid T="LanguageRow"
+                     Items="_languages"
+                     QuickFilter="_quickFilter"
+                     Filterable="true"
+                     SortMode="SortMode.Multiple"
+                     ReadOnly="true"
+                     Hover="true"
+                     Dense="true"
+                     Elevation="0"
+                     RowsPerPage="10">
+            <Columns>
+                <PropertyColumn Property="language => language.Name" Title="Name" />
+                <PropertyColumn Property="language => language.Code" Title="Code">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">
+                            @context.Item.Code
+                        </MudChip>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="language => language.GreetingCount" Title="Greetings" />
+                <PropertyColumn Property="language => language.UpdatedAt" Title="Last updated"
+                                Format="d MMM yyyy" />
+                <TemplateColumn Title="Actions" Sortable="false" Filterable="false"
+                                CellClass="row-actions">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Outlined.Visibility"
+                                       Size="Size.Small"
+                                       OnClick="@(() => ViewAsync(context.Item))"
+                                       aria-label="View language"
+                                       data-testid="@($"view-language-{context.Item.Id}")" />
+                        <MudIconButton Icon="@Icons.Material.Outlined.Edit"
+                                       Size="Size.Small"
+                                       OnClick="@(() => UpdateAsync(context.Item))"
+                                       aria-label="Edit language"
+                                       data-testid="@($"edit-language-{context.Item.Id}")" />
+                        <MudIconButton Icon="@Icons.Material.Outlined.Delete"
+                                       Size="Size.Small"
+                                       Color="Color.Error"
+                                       OnClick="@(() => DeleteAsync(context.Item))"
+                                       aria-label="Delete language"
+                                       data-testid="@($"delete-language-{context.Item.Id}")" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-6">
+                    No languages match the current filters.
+                </MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudDataGridPager T="LanguageRow" />
+            </PagerContent>
+        </MudDataGrid>
+    </MudPaper>
+}
+
+@code {
+    private readonly CancellationTokenSource _disposeToken = new();
+    private List<LanguageRow> _languages = [];
+    private string? _search;
+    private string? _error;
+    private bool _loading = true;
+    private bool _createActionHandled;
+
+    private Func<LanguageRow, bool> _quickFilter => language =>
+        string.IsNullOrWhiteSpace(_search)
+        || language.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || language.Code.Contains(_search, StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        await HandleCreateQueryAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            var languages = await Http.GetFromJsonAsync<List<LanguageResponse>>(
+                "api/languages/",
+                _disposeToken.Token) ?? [];
+            var greetings = await Http.GetFromJsonAsync<List<GreetingReference>>(
+                "api/greetings/",
+                _disposeToken.Token) ?? [];
+            var greetingCounts = greetings
+                .GroupBy(greeting => greeting.LanguageId)
+                .ToDictionary(group => group.Key, group => group.Count());
+
+            _languages = languages
+                .Select(language => new LanguageRow(
+                    language.Id,
+                    language.Name,
+                    language.Code,
+                    greetingCounts.GetValueOrDefault(language.Id),
+                    language.CreatedAt,
+                    language.UpdatedAt))
+                .ToList();
+        }
+        catch (OperationCanceledException) when (_disposeToken.IsCancellationRequested)
+        {
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Languages could not be loaded. Check the API connection and try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task HandleCreateQueryAsync()
+    {
+        if (_createActionHandled
+            || !Navigation.ToAbsoluteUri(Navigation.Uri).Query.Contains(
+                "action=create",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _createActionHandled = true;
+        await CreateAsync();
+    }
+
+    private async Task CreateAsync()
+    {
+        var dialog = await DialogService.ShowAsync<CreateLanguage>(
+            "Add language",
+            DialogOptions());
+        var result = await dialog.Result;
+
+        if (result?.Canceled == false)
+        {
+            Snackbar.Add("Language created.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task ViewAsync(LanguageRow language)
+    {
+        var parameters = new DialogParameters<ViewLanguage>
+        {
+            { component => component.Id, language.Id }
+        };
+        await DialogService.ShowAsync<ViewLanguage>("Language details", parameters, DialogOptions());
+    }
+
+    private async Task UpdateAsync(LanguageRow language)
+    {
+        var parameters = new DialogParameters<UpdateLanguage>
+        {
+            { component => component.Id, language.Id }
+        };
+        var dialog = await DialogService.ShowAsync<UpdateLanguage>(
+            "Edit language",
+            parameters,
+            DialogOptions());
+        var result = await dialog.Result;
+
+        if (result?.Canceled == false)
+        {
+            Snackbar.Add("Language updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteAsync(LanguageRow language)
+    {
+        var parameters = new DialogParameters<DeleteLanguage>
+        {
+            { component => component.Id, language.Id },
+            { component => component.Name, language.Name },
+            { component => component.GreetingCount, language.GreetingCount }
+        };
+        var dialog = await DialogService.ShowAsync<DeleteLanguage>(
+            "Delete language",
+            parameters,
+            DialogOptions());
+        var result = await dialog.Result;
+
+        if (result?.Canceled == false)
+        {
+            Snackbar.Add("Language deleted.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private static DialogOptions DialogOptions() => new()
+    {
+        CloseOnEscapeKey = true,
+        FullWidth = true,
+        MaxWidth = MaxWidth.Small
+    };
+
+    public ValueTask DisposeAsync()
+    {
+        _disposeToken.Cancel();
+        _disposeToken.Dispose();
+        return ValueTask.CompletedTask;
+    }
+
+    private sealed record LanguageResponse(
+        Guid Id,
+        string Name,
+        string Code,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+
+    private sealed record GreetingReference(Guid Id, Guid LanguageId);
+
+    private sealed record LanguageRow(
+        Guid Id,
+        string Name,
+        string Code,
+        int GreetingCount,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+}

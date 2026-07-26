@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using FluentValidation;
 using Microsoft.AspNetCore.OpenApi;
+using SymphonyTest1.Api.Features.Authentication;
 using SymphonyTest1.Api.Features.Greetings;
 using SymphonyTest1.Api.Features.Health;
 using SymphonyTest1.Api.Features.Languages;
+using SymphonyTest1.Api.Infrastructure.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +22,7 @@ builder.Services.AddOpenApi(options =>
             ? defaultId
             : $"{declaringType.Name}{defaultId}";
     };
+    options.AddBearerSecurity();
 });
 builder.Services.AddProblemDetails(options =>
 {
@@ -30,6 +33,7 @@ builder.Services.AddProblemDetails(options =>
             ?? context.HttpContext.TraceIdentifier;
     };
 });
+builder.Services.AddApplicationAuthentication(builder.Configuration);
 
 builder.AddNpgsqlDataSource("DefaultConnection");
 builder.Services.AddValidatorsFromAssemblyContaining<Program>(includeInternalTypes: true);
@@ -43,17 +47,34 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapDefaultEndpoints();
 
-app.MapGroup("/api/health")
+var api = app.MapGroup("/api")
+    .RequireAuthorization();
+
+api.MapGroup("/health")
+    .AllowAnonymous()
     .MapHealthEndpoints();
 
-app.MapGroup("/api/languages")
+api.MapGroup("/authentication")
+    .AllowAnonymous()
+    .MapAuthenticationEndpoints();
+
+api.MapGroup("/languages")
     .MapLanguageEndpoints();
 
-app.MapGroup("/api/greetings")
+api.MapGroup("/greetings")
     .MapGreetingEndpoints();
+
+app.MapFallbackToFile(
+    app.Environment.IsEnvironment("Testing")
+        ? "index.Testing.html"
+        : "index.html");
 
 app.Run();
 

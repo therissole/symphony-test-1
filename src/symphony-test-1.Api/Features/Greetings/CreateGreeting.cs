@@ -54,6 +54,7 @@ public static class CreateGreeting
             .WithSummary("Create a greeting")
             .WithDescription("Adds a greeting for an existing language.")
             .Produces<Response>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status401Unauthorized)
             .ProducesValidationProblem();
     }
 

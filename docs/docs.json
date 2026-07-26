@@ -39,6 +39,7 @@
           {
             "group": "Features",
             "pages": [
+              "features/authentication",
               "features/languages",
               "features/greetings"
             ]

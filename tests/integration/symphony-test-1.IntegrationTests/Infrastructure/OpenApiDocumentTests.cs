@@ -79,8 +79,30 @@ public class OpenApiDocumentTests
                 .Where(parameter => !HasNonEmptyString(parameter, "description"))
                 .Select(parameter => $"{operation.Name}: {parameter.GetProperty("name").GetString()}"))
             .ToList();
+        var administrationOperations = operations
+            .Where(operation =>
+                operation.Name.Contains("/api/languages", StringComparison.Ordinal)
+                || operation.Name.Contains("/api/greetings", StringComparison.Ordinal))
+            .ToList();
+        var operationsMissingBearerSecurity = administrationOperations
+            .Where(operation => !operation.Value.TryGetProperty("security", out _))
+            .Select(operation => operation.Name)
+            .ToList();
+        var operationsMissingUnauthorizedResponse = administrationOperations
+            .Where(operation =>
+                !operation.Value.GetProperty("responses").TryGetProperty("401", out _))
+            .Select(operation => operation.Name)
+            .ToList();
+        var publicOperations = operations
+            .Where(operation =>
+                operation.Name.Contains("/api/health", StringComparison.Ordinal)
+                || operation.Name.Contains(
+                    "/api/authentication/configuration",
+                    StringComparison.Ordinal))
+            .ToList();
 
         var schemas = root.GetProperty("components").GetProperty("schemas");
+        var securitySchemes = root.GetProperty("components").GetProperty("securitySchemes");
         var sliceSchemas = schemas.EnumerateObject()
             .Where(schema =>
                 schema.Name is not "ProblemDetails" and not "HttpValidationProblemDetails")
@@ -95,10 +117,17 @@ public class OpenApiDocumentTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(operations, Has.Count.EqualTo(12));
+            Assert.That(operations, Has.Count.EqualTo(13));
             Assert.That(missingSummaries, Is.Empty);
             Assert.That(missingDescriptions, Is.Empty);
             Assert.That(missingParameterDescriptions, Is.Empty);
+            Assert.That(operationsMissingBearerSecurity, Is.Empty);
+            Assert.That(operationsMissingUnauthorizedResponse, Is.Empty);
+            Assert.That(
+                publicOperations.All(operation =>
+                    !operation.Value.TryGetProperty("security", out _)),
+                Is.True);
+            Assert.That(securitySchemes.TryGetProperty("Bearer", out _), Is.True);
             Assert.That(undocumentedProperties, Is.Empty);
             Assert.That(schemas.TryGetProperty("Request", out _), Is.False);
             Assert.That(schemas.TryGetProperty("Response", out _), Is.False);
@@ -106,6 +135,9 @@ public class OpenApiDocumentTests
             Assert.That(schemas.TryGetProperty("CreateLanguageResponse", out _), Is.True);
             Assert.That(schemas.TryGetProperty("CreateGreetingRequest", out _), Is.True);
             Assert.That(schemas.TryGetProperty("GetHealthResponse", out _), Is.True);
+            Assert.That(
+                schemas.TryGetProperty("GetAuthenticationConfigurationResponse", out _),
+                Is.True);
         });
     }
 

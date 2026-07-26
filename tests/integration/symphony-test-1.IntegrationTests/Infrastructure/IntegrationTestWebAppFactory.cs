@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,7 @@ namespace SymphonyTest1.IntegrationTests.Infrastructure;
 
 public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>
 {
+    private readonly bool _authenticated;
     private readonly string _environment;
     private readonly PostgreSqlContainer _dbContainer = new PostgreSqlBuilder("postgres:18-alpine")
         .WithDatabase("symphony_test_1_test")
@@ -16,17 +18,32 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>
         .WithPassword("postgres")
         .Build();
 
-    public IntegrationTestWebAppFactory(string environment = "Testing")
+    public IntegrationTestWebAppFactory(
+        string environment = "Testing",
+        bool authenticated = true)
     {
         _environment = environment;
+        _authenticated = authenticated;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Testing is not a development environment, so opt into referenced static web assets.
+        builder.UseStaticWebAssets();
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<NpgsqlDataSource>();
             services.AddSingleton(_ => NpgsqlDataSource.Create(_dbContainer.GetConnectionString()));
+            services.AddSingleton(new TestAuthenticationState(_authenticated));
+            services
+                .AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = TestAuthenticationHandler.SchemeName;
+                    options.DefaultChallengeScheme = TestAuthenticationHandler.SchemeName;
+                })
+                .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>(
+                    TestAuthenticationHandler.SchemeName,
+                    _ => { });
         });
 
         builder.UseEnvironment(_environment);

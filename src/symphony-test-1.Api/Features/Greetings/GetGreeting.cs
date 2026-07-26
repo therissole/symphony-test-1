@@ -29,6 +29,7 @@ public static class GetGreeting
             .WithSummary("Get a greeting")
             .WithDescription("Returns a stored greeting by its unique identifier.")
             .Produces<Response>()
+            .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound);
     }
 

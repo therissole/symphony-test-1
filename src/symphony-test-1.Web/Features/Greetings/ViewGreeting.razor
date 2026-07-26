@@ -1,0 +1,101 @@
+@inject HttpClient Http
+
+<MudDialog>
+    <DialogContent>
+        @if (_loading)
+        {
+            <LoadingPanel Message="Loading greeting…" />
+        }
+        else if (_error is not null)
+        {
+            <ErrorPanel Message="@_error" />
+        }
+        else if (_greeting is not null)
+        {
+            <dl class="detail-list" data-testid="greeting-details">
+                <dt>Greeting</dt>
+                <dd>@_greeting.GreetingText</dd>
+                <dt>Language</dt>
+                <dd>@LanguageName</dd>
+                <dt>Style</dt>
+                <dd>
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                             Color="@(_greeting.Formal ? Color.Primary : Color.Default)">
+                        @(_greeting.Formal ? "Formal" : "Informal")
+                    </MudChip>
+                </dd>
+                <dt>Identifier</dt>
+                <dd>@_greeting.Id</dd>
+                <dt>Created</dt>
+                <dd>@_greeting.CreatedAt.ToLocalTime().ToString("f")</dd>
+                <dt>Last updated</dt>
+                <dd>@_greeting.UpdatedAt.ToLocalTime().ToString("f")</dd>
+            </dl>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Close"
+                   data-testid="close-greeting-details">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired]
+    public Guid Id { get; set; }
+
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private GreetingResponse? _greeting;
+    private List<LanguageResponse> _languages = [];
+    private bool _loading = true;
+    private string? _error;
+
+    private string LanguageName
+    {
+        get
+        {
+            var language = _languages.FirstOrDefault(item => item.Id == _greeting?.LanguageId);
+            return language is null ? "Unknown" : $"{language.Name} ({language.Code})";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            using var response = await Http.GetAsync($"api/greetings/{Id}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = response.StatusCode == System.Net.HttpStatusCode.NotFound
+                    ? "This greeting no longer exists."
+                    : (await ApiProblemReader.ReadAsync(response, CancellationToken.None)).Message;
+                return;
+            }
+
+            _greeting = await response.Content.ReadFromJsonAsync<GreetingResponse>();
+            _languages = await Http.GetFromJsonAsync<List<LanguageResponse>>("api/languages/") ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            _error = "The greeting could not be loaded. Check the API connection and try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Close() => MudDialog.Close();
+
+    private sealed record GreetingResponse(
+        Guid Id,
+        Guid LanguageId,
+        string GreetingText,
+        bool Formal,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+
+    private sealed record LanguageResponse(Guid Id, string Name, string Code);
+}

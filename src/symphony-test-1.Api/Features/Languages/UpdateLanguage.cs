@@ -56,6 +56,7 @@ public static class UpdateLanguage
             .WithSummary("Update a language")
             .WithDescription("Replaces the name and code of an existing language.")
             .Produces<Response>()
+            .Produces(StatusCodes.Status401Unauthorized)
             .ProducesValidationProblem()
             .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
             .Produces(StatusCodes.Status404NotFound);

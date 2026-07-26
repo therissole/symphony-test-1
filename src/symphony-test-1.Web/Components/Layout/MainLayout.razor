@@ -1,0 +1,145 @@
+@inherits LayoutComponentBase
+@using SymphonyTest1.Web.Features.Authentication
+
+<MudThemeProvider Theme="_theme" />
+<MudPopoverProvider />
+<MudDialogProvider FullWidth="true" CloseButton="true" CloseOnEscapeKey="true"
+                   MaxWidth="MaxWidth.Small" />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Color="Color.Surface" Class="app-bar">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
+                       Edge="Edge.Start" OnClick="ToggleDrawer" Class="app-bar__menu"
+                       aria-label="Toggle navigation" />
+        <div class="brand-mark" aria-hidden="true">S</div>
+        <MudText Typo="Typo.h6" Class="brand-name">Symphony Administration</MudText>
+        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                 Color="Color.Primary" Class="reference-chip">
+            Reference application
+        </MudChip>
+        <MudSpacer />
+        <AuthorizeView Context="authenticationState">
+            <Authorized>
+                <div class="profile-placeholder" data-testid="profile-placeholder">
+                    <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium">
+                        @DisplayInitials(authenticationState.User.Identity?.Name)
+                    </MudAvatar>
+                    <div class="profile-placeholder__text">
+                        <MudText Typo="Typo.subtitle2" Class="profile-placeholder__name">
+                            @(authenticationState.User.Identity?.Name ?? "Administrator")
+                        </MudText>
+                        <SignOutButton />
+                    </div>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Href="authentication/login"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary">
+                    Sign in
+                </MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" Variant="DrawerVariant.Responsive"
+               Breakpoint="Breakpoint.Md" Elevation="0" ClipMode="DrawerClipMode.Always"
+               Class="app-drawer">
+        <div class="app-drawer__content">
+            <NavMenu />
+            <MudPaper Class="reference-note" Outlined="true">
+                <MudIcon Icon="@Icons.Material.Outlined.Lightbulb" Color="Color.Primary" />
+                <div>
+                    <MudText Typo="Typo.subtitle2">Reference design</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Each UI use case is an independently maintainable feature slice.
+                    </MudText>
+                </div>
+            </MudPaper>
+        </div>
+    </MudDrawer>
+
+    <MudMainContent Class="app-main">
+        <ErrorBoundary>
+            <ChildContent>
+                @Body
+            </ChildContent>
+            <ErrorContent Context="exception">
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled">
+                    The page could not be displayed. Refresh the browser and try again.
+                </MudAlert>
+            </ErrorContent>
+        </ErrorBoundary>
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui">
+    An unexpected error occurred.
+    <a href="" class="reload">Reload</a>
+    <button class="dismiss" type="button">×</button>
+</div>
+
+@code {
+    private bool _drawerOpen = true;
+
+    private static string DisplayInitials(string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return "A";
+        }
+
+        return string.Concat(
+            displayName
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Take(2)
+                .Select(part => char.ToUpperInvariant(part[0])));
+    }
+
+    private static readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#355f9d",
+            Secondary = "#667085",
+            Background = "#f4f6f9",
+            Surface = "#ffffff",
+            DrawerBackground = "#ffffff",
+            DrawerText = "#344054",
+            AppbarBackground = "#ffffff",
+            AppbarText = "#172033",
+            TextPrimary = "#172033",
+            TextSecondary = "#667085",
+            Divider = "#dfe4ec",
+            Success = "#157f64",
+            Warning = "#b54708",
+            Error = "#b42318"
+        },
+        LayoutProperties = new LayoutProperties
+        {
+            AppbarHeight = "68px",
+            DrawerWidthLeft = "248px",
+            DefaultBorderRadius = "8px"
+        },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography
+            {
+                FontFamily = ["Inter", "Segoe UI", "Roboto", "sans-serif"]
+            },
+            H4 = new H4Typography
+            {
+                FontSize = "1.75rem",
+                FontWeight = "650",
+                LetterSpacing = "-0.02em"
+            },
+            H6 = new H6Typography
+            {
+                FontWeight = "650"
+            }
+        }
+    };
+
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+}

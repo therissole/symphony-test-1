@@ -14,6 +14,7 @@ public static class DeleteLanguage
             .WithSummary("Delete a language")
             .WithDescription("Deletes a language from the catalog by its unique identifier.")
             .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound);
     }
 

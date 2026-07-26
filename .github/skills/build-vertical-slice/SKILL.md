@@ -1,6 +1,6 @@
 ---
 name: build-vertical-slice
-description: Add, change, review, or refactor ASP.NET Core use cases in this repository using request-owned Vertical Slice Architecture. Use for endpoint work under src/symphony-test-1.Api/Features, request and response contracts, validation, Dapper SQL, slice registration, slice-focused tests, or architecture documentation.
+description: Add, change, review, or refactor API or Blazor WebAssembly use cases in this repository using request-owned Vertical Slice Architecture. Use for endpoint work, UI feature slices, local contracts, validation, Dapper SQL, slice-focused tests, or architecture documentation.
 ---
 
 # Build Vertical Slice
@@ -53,3 +53,19 @@ one named slice file.
 
 Shared infrastructure belongs under `Infrastructure/`. Capability route registration belongs in
 the feature folder. Everything specific to fulfilling one request belongs in that request's slice.
+
+## WebAssembly UI slices
+
+For UI feature work, keep list/create/view/update/delete interactions in separate, descriptively
+named Razor components under `src/symphony-test-1.Web/Features/<Capability>/`.
+
+1. Keep the `HttpClient` operation, smallest local request/response records, loading state, form
+   feedback, and expected error handling in the component.
+2. Use relative `/api` routes; the API hosts the WASM static assets and supplies the same origin.
+3. Do not reference the API assembly, persistence packages, server DTOs, or a resource-wide API
+   client/service from the WASM project.
+4. Share only stable presentation mechanics in `Components/` and protocol mechanics such as RFC
+   7807 parsing in `Infrastructure/`.
+5. Use bUnit for fast component states and Playwright for a real-browser workflow when behavior
+   spans UI and API slices.
+6. Extend the mechanical architecture tests when adding a new convention worth preserving.

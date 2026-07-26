@@ -10,6 +10,9 @@ operation owns its route, contract, validation, handler, SQL, mapping, and expec
 ## What the reference demonstrates
 
 - ASP.NET Core Minimal APIs with typed results and generated OpenAPI
+- A responsive MudBlazor administration UI running as Blazor WebAssembly
+- Same-origin WASM hosting from the API for one deployable application
+- Dashboard and list/sort/filter/create/view/update/delete workflows for both capabilities
 - One request/use case per slice
 - Slice-local FluentValidation rules with explicit asynchronous handler invocation
 - Request-specific Dapper SQL against PostgreSQL
@@ -18,8 +21,10 @@ operation owns its route, contract, validation, handler, SQL, mapping, and expec
 - Cancellation-aware database I/O
 - Trace-correlated structured logging through `ILogger` and OpenTelemetry
 - Aspire service defaults for OpenTelemetry, health checks, resilience, and service discovery
-- Aspire 13.4 AppHost orchestration for the API, PostgreSQL, and database migrations
-- NUnit unit, integration, and end-to-end tests
+- Keycloak OIDC authentication with authorization code + PKCE in the WebAssembly client
+- JWT bearer validation and authenticated administration API boundaries
+- Aspire 13.4 AppHost orchestration for the API, Keycloak, PostgreSQL, and database migrations
+- NUnit architecture, unit, integration, bUnit component, and Playwright browser tests
 - Real PostgreSQL tests through Testcontainers
 - Versioned, checksum-verified SQL migrations and a complete Docker Compose fallback
 - Repository instructions, custom agents, and a reusable VSA agent skill
@@ -34,14 +39,21 @@ cd symphony-test-1
 aspire run
 ```
 
-The Aspire dashboard shows the dynamically assigned API endpoint. Open `/api/health` from that
-endpoint to verify database-aware health, or `/openapi/v1.json` for the OpenAPI document.
+The Aspire dashboard shows the dynamically assigned **Symphony administration** endpoint. Open it
+and sign in as `symphony-admin` with the temporary local password `ChangeMe!12345`; Keycloak
+requires a new password at first sign-in. These credentials exist only in the disposable local
+realm. Use `/api/health` without authentication to verify database-aware health, or
+`/openapi/v1.json` for the OpenAPI document.
 
 To run beside another copy without port or user-secret collisions:
 
 ```bash
 aspire run --isolated
 ```
+
+Aspire assigns resource endpoints for each run. The API receives that run's Keycloak authority
+from the AppHost, and the hosted WebAssembly client obtains the same non-secret authority at
+startup, so no Keycloak or application port is compiled into the Aspire path.
 
 ## Project structure
 
@@ -64,6 +76,15 @@ src/symphony-test-1.Api/
 │       └── GetHealth.cs
 └── Program.cs
 
+src/symphony-test-1.Web/
+├── Components/                    # layout and shared presentation mechanics
+├── Features/
+│   ├── Dashboard/
+│   ├── Languages/                 # one Razor component per UI use case
+│   └── Greetings/                 # one Razor component per UI use case
+├── Infrastructure/                # RFC 7807 response parsing only
+└── wwwroot/                       # WASM host page and application styles
+
 src/symphony-test-1.DatabaseMigrations/
 └── Program.cs                     # one-shot, versioned SQL migration resource
 
@@ -71,9 +92,10 @@ src/symphony-test-1.ServiceDefaults/
 └── Extensions.cs                  # telemetry, health, resilience, discovery
 
 tests/
-├── unit/          # deterministic validation rules
+├── unit/          # deterministic rules and mechanical architecture checks
+├── ui/            # fast bUnit component states
 ├── integration/   # every slice through HTTP + real PostgreSQL
-└── e2e/           # workflows spanning multiple slices
+└── e2e/           # API and Playwright workflows spanning multiple slices
 
 .github/
 ├── agents/        # project-specific Copilot agents
@@ -101,12 +123,20 @@ request behavior. See [the architecture guide](docs/architecture.mdx) and the
 
 | Capability | Endpoints |
 | --- | --- |
-| Health | `GET /api/health` |
+| Health (public) | `GET /api/health` |
+| Authentication bootstrap (public) | `GET /api/authentication/configuration` |
 | Languages | `GET /api/languages`, `GET /api/languages/{id}`, `POST /api/languages`, `PUT /api/languages/{id}`, `DELETE /api/languages/{id}` |
 | Greetings | `GET /api/greetings`, `GET /api/greetings/{id}`, `GET /api/greetings/by-language/{code}`, `POST /api/greetings`, `PUT /api/greetings/{id}`, `DELETE /api/greetings/{id}` |
 
+Language and greeting endpoints require a Keycloak access token whose audience is
+`symphony-api`. The dashboard and both management pages initiate the OIDC sign-in flow when the
+visitor is anonymous. Health deliberately remains anonymous for orchestrators and diagnostics.
+
 The local Mintlify site generates its interactive API reference from the API's live Development
 OpenAPI document.
+
+The administration UI intentionally excludes Health. Health remains an operational API and
+orchestrator concern rather than a catalog management use case.
 
 ## Local development and verification
 
@@ -116,17 +146,25 @@ Aspire is the primary local-development path:
 aspire run
 ```
 
-The AppHost creates PostgreSQL, runs every unapplied `db/migrations/V*.sql` file, verifies
+The AppHost creates Keycloak with the committed local `symphony` realm and PostgreSQL, runs every
+unapplied `db/migrations/V*.sql` file, verifies
 checksums for migrations already applied, starts the API only after migration success, and starts
-the local Mintlify documentation preview. The Aspire dashboard shows links for both the API and
-the documentation. In Mintlify, open **API Reference** to inspect contracts, status codes, and send
-requests to the running API from the generated endpoint pages.
+the local Mintlify documentation preview. The Aspire dashboard shows links for the administration
+application and the documentation. The application executes in WebAssembly and calls its host's
+relative `/api` routes. Aspire allocates Keycloak and application endpoints per run; the API
+publishes the current non-secret OIDC authority and client ID to the browser through
+`/api/authentication/configuration`. In Mintlify, open **API Reference** to inspect contracts, status codes, and
+send requests to the running API from the generated endpoint pages.
+
+Aspire PostgreSQL storage is intentionally environment-local and ephemeral so isolated runs can
+use randomized credentials safely. The Docker Compose fallback provides a named PostgreSQL volume
+when persistence across restarts is wanted.
 
 Docker Compose remains available as a headless fallback and uses the same .NET migration resource:
 
 ```bash
 docker compose up --build --wait
-curl http://localhost:8080/api/health
+curl http://localhost:8081/api/health
 docker compose down -v
 ```
 
@@ -135,6 +173,7 @@ Run the quality checks:
 ```bash
 dotnet format symphony-test-1.slnx --verify-no-changes
 dotnet build symphony-test-1.slnx --configuration Release
+pwsh tests/e2e/symphony-test-1.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium
 dotnet test symphony-test-1.slnx --configuration Release --no-build
 dotnet list symphony-test-1.slnx package --vulnerable --include-transitive
 ```
@@ -152,6 +191,17 @@ Docker must be running for integration and end-to-end tests.
 - **Limited shared infrastructure:** the Npgsql data source and application pipeline are genuine
   platform concerns.
 - **Intentional duplication:** a small repeated mapping is cheaper than coupling unrelated slices.
+- **Hosted WASM:** the browser client is independently compiled but served by the API, avoiding
+  CORS and runtime endpoint discovery while retaining client-side execution.
+- **Defense in depth:** route authorization prevents anonymous navigation in the client, while
+  the API independently validates issuer, audience, signature, and token lifetime. Client-side
+  visibility is never treated as the security boundary.
+- **Local realm only:** Aspire imports the committed realm for development. Production deployments
+  must provide a managed Keycloak instance, HTTPS authority, and exact environment-specific client
+  redirect and logout URIs. The disposable local realm's wildcard redirects and web origins exist
+  only to support Aspire-assigned ports.
+- **UI slices:** components own their HTTP contracts and operation flow. There is no shared
+  language or greeting client/service layer.
 
 The architecture guide explains how slices can evolve toward richer domain patterns when business
 complexity justifies them.

@@ -1,0 +1,85 @@
+/* A small local extension of Keycloak's supported keycloak.v2 login theme. */
+
+body {
+    background: #eef3f8;
+}
+
+.pf-v5-c-login {
+    background:
+        radial-gradient(circle at 12% 10%, rgb(53 95 157 / 16%), transparent 30rem),
+        radial-gradient(circle at 88% 88%, rgb(91 126 173 / 14%), transparent 28rem),
+        linear-gradient(135deg, #f7f9fc 0%, #e9f0f7 100%);
+}
+
+.pf-v5-c-login__container {
+    width: min(100% - 2rem, 30rem);
+}
+
+.pf-v5-c-login__header {
+    margin-bottom: 1.25rem;
+}
+
+#kc-header-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    color: #172033;
+    font-family: Inter, "Segoe UI", Roboto, sans-serif;
+    font-size: 1.55rem;
+    font-weight: 650;
+    letter-spacing: -0.035em;
+    text-transform: none;
+}
+
+#kc-header .pf-v5-c-brand {
+    color: #172033 !important;
+    text-shadow: none;
+}
+
+#kc-header-wrapper::before {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border-radius: 0.5rem;
+    background: #355f9d;
+    box-shadow: 0 4px 12px rgb(53 95 157 / 24%);
+    color: #fff;
+    content: "S";
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.pf-v5-c-login__main {
+    border: 1px solid #d8e1eb;
+    border-top: 3px solid #355f9d;
+    border-radius: 0.75rem;
+    box-shadow: 0 16px 40px rgb(23 32 48 / 12%);
+}
+
+#kc-page-title {
+    color: #172033;
+    font-size: 1.65rem;
+    letter-spacing: -0.03em;
+}
+
+.pf-v5-c-form-control,
+.pf-v5-c-form-control input {
+    border-radius: 0.4rem;
+}
+
+.pf-v5-c-button.pf-m-primary {
+    border-radius: 0.4rem;
+    background: #355f9d;
+}
+
+.pf-v5-c-button.pf-m-primary:hover {
+    background: #294d82;
+}
+
+@media (max-width: 480px) {
+    .pf-v5-c-login__container {
+        width: min(100% - 1.25rem, 30rem);
+    }
+}

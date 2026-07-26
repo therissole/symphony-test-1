@@ -1,6 +1,6 @@
 ---
 name: test-engineer
-description: Verifies request slices and cross-slice workflows with NUnit and Testcontainers
+description: Verifies API and UI slices with NUnit, bUnit, Playwright, and Testcontainers
 tools: ["*"]
 target: github-copilot
 infer: false
@@ -19,6 +19,8 @@ Read `AGENTS.md` and `docs/architecture.mdx` before changing tests.
 - Test every slice through HTTP in the integration project using the real Testcontainers
   PostgreSQL database.
 - Use end-to-end tests only for workflows that cross multiple slices.
+- Use bUnit for fast WASM component states and Playwright over Kestrel for browser workflows.
+- Preserve mechanical checks for WASM dependency direction and UI slice boundaries.
 - Cover success plus relevant validation, not-found, conflict, filtering, constraint, and cascade
   behavior.
 - Assert status, headers, and contract fields that matter to the use case.

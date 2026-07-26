@@ -55,6 +55,7 @@ public static class CreateLanguage
             .WithSummary("Create a language")
             .WithDescription("Adds a language with a unique name and code to the catalog.")
             .Produces<Response>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status401Unauthorized)
             .ProducesValidationProblem()
             .Produces<ProblemDetails>(StatusCodes.Status409Conflict);
     }

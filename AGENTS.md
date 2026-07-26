@@ -20,6 +20,12 @@ ASP.NET Core. Preserve both its behavior and its teaching value.
 - MediatR is optional and is not evidence of VSA. Do not add it without a concrete need.
 - Prefer small duplication over coupling unrelated requests. Extract a shared concept only after
   it has stable cross-cutting meaning.
+- Keep UI use cases in one descriptively named Razor component under
+  `src/symphony-test-1.Web/Features/<Capability>/`.
+- A UI slice owns its HTTP call, local request/response records, state, validation feedback, and
+  expected failure handling. Do not add resource-wide API clients/services or share server DTOs.
+- The WebAssembly project must not reference the API project or persistence packages. Share only
+  stable presentation and transport mechanics under `Components/` and `Infrastructure/`.
 
 Use `.github/skills/build-vertical-slice/SKILL.md` for feature work.
 
@@ -47,6 +53,9 @@ Use `.github/skills/build-vertical-slice/SKILL.md` for feature work.
   not exist.
 - Integration-test each slice through HTTP against the Testcontainers PostgreSQL database.
 - Use end-to-end tests for workflows spanning multiple slices.
+- Use bUnit for component states and Playwright for browser workflows over the hosted WASM app.
+- Preserve the mechanical architecture tests that protect client dependency direction and slice
+  boundaries.
 - Cover success, validation, not-found, conflict, and database-constraint behavior where relevant.
 - Keep tests independent and avoid execution-order assumptions or arbitrary sleeps.
 
@@ -54,6 +63,7 @@ Run:
 
 ```bash
 dotnet build symphony-test-1.slnx --configuration Release
+pwsh tests/e2e/symphony-test-1.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium
 dotnet test symphony-test-1.slnx --configuration Release --no-build
 dotnet list symphony-test-1.slnx package --vulnerable --include-transitive
 ```

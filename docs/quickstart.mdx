@@ -23,14 +23,19 @@ aspire run
 
 The Aspire AppHost starts:
 
-- PostgreSQL 18 with persistent local data
+- PostgreSQL 18 with environment-local ephemeral data
+- Keycloak with the committed local `symphony` realm
 - A one-shot .NET migration resource
-- The API after all migrations complete successfully
+- The API and hosted Blazor WebAssembly administration UI after all migrations complete
+  successfully
 - The local Mintlify documentation preview
 
-Use the API and documentation endpoints shown in the Aspire dashboard. The documentation resource
-reloads as files under `docs/` change. In the documentation, open **API Reference**, select an
-endpoint, and choose **Try it** to send a request to the running API.
+Open the **Symphony administration** endpoint shown in the Aspire dashboard to use the dashboard,
+languages, and greetings UI. Sign in as `symphony-admin` with the temporary password
+`ChangeMe!12345`; Keycloak requires a new password on first sign-in. The documentation resource
+reloads as files under `docs/` change. In
+the documentation, open **API Reference**, select an endpoint, and choose **Try it** to send a
+request to the running API.
 The endpoint pages are generated from the API's live Development OpenAPI document each time the
 documentation resource starts.
 
@@ -38,15 +43,28 @@ Use the API endpoint to exercise the slices:
 
 ```bash
 curl <api-endpoint>/api/health
-curl <api-endpoint>/api/languages
-curl "<api-endpoint>/api/greetings/by-language/en?formal=true"
 ```
+
+Health is public. Language and greeting calls require a bearer token obtained through the
+interactive OIDC sign-in flow.
 
 To run another instance with randomized ports and isolated user secrets:
 
 ```bash
 aspire run --isolated
 ```
+
+Aspire allocates independent endpoints for the application, Keycloak, PostgreSQL, and the other
+resources in that run. The AppHost injects the resolved Keycloak realm authority into the API; the
+browser then obtains that authority and the public client ID from
+`/api/authentication/configuration`. There is no fixed Keycloak port in the Aspire application
+model. PostgreSQL intentionally uses container-local storage so randomized isolated credentials
+cannot be paired with data initialized by a previous run. Use Docker Compose when local database
+persistence across environment restarts is required.
+
+Use a separate browser profile for each environment when signing into both at once. Keycloak
+cookies are scoped by host and path rather than port, so two `localhost` instances using the same
+realm name otherwise share browser cookie scope even though their service ports are different.
 
 The Development OpenAPI document is at `<api-endpoint>/openapi/v1.json`. Aspire also exposes
 platform readiness and liveness endpoints at `/health` and `/alive`; the existing `/api/health`
@@ -59,26 +77,35 @@ migration executable:
 
 ```bash
 docker compose up --build --wait
-curl http://localhost:8080/api/health
+curl http://localhost:8081/api/health
 docker compose down -v
 ```
 
-Set `SYMPHONY_API_PORT` or `SYMPHONY_POSTGRES_PORT` before starting Compose to override the
-default host ports `8080` and `5432`.
+Docker Compose exposes Keycloak at `http://localhost:8180` and the application at
+`http://localhost:8081`. Set `SYMPHONY_API_PORT`, `SYMPHONY_KEYCLOAK_PORT`, or
+`SYMPHONY_POSTGRES_PORT` before starting Compose to override the defaults. Compose derives the
+browser-visible Keycloak authority from `SYMPHONY_KEYCLOAK_PORT`. Its committed realm allows
+all redirect URIs and web origins for local development only because Keycloak does not support a
+wildcard in the URI port. Replace those wildcards with exact deployed URLs outside local
+development.
 
 ## Run tests
 
 Docker must be running because integration and end-to-end tests create isolated PostgreSQL
-containers.
+containers. Build once, then install the Playwright browser runtime before the first browser-test
+run:
 
 ```bash
-dotnet test symphony-test-1.slnx
+dotnet build symphony-test-1.slnx --configuration Release
+pwsh tests/e2e/symphony-test-1.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium
+dotnet test symphony-test-1.slnx --configuration Release --no-build
 ```
 
 Run suites individually:
 
 ```bash
 dotnet test tests/unit/symphony-test-1.UnitTests/symphony-test-1.UnitTests.csproj
+dotnet test tests/ui/symphony-test-1.WebTests/symphony-test-1.WebTests.csproj
 dotnet test tests/integration/symphony-test-1.IntegrationTests/symphony-test-1.IntegrationTests.csproj
 dotnet test tests/e2e/symphony-test-1.E2ETests/symphony-test-1.E2ETests.csproj
 ```
@@ -88,6 +115,7 @@ dotnet test tests/e2e/symphony-test-1.E2ETests/symphony-test-1.E2ETests.csproj
 ```bash
 dotnet format symphony-test-1.slnx --verify-no-changes
 dotnet build symphony-test-1.slnx --configuration Release
+pwsh tests/e2e/symphony-test-1.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium
 dotnet test symphony-test-1.slnx --configuration Release --no-build
 dotnet list symphony-test-1.slnx package --vulnerable --include-transitive
 ```

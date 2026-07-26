@@ -1,0 +1,289 @@
+@page "/greetings"
+@attribute [Authorize]
+@implements IAsyncDisposable
+@inject HttpClient Http
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Greetings | Symphony Administration</PageTitle>
+
+<PageHeader Title="Greetings"
+            Description="Manage greeting text and its language context.">
+    <Actions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="CreateAsync" data-testid="add-greeting">
+            Add greeting
+        </MudButton>
+    </Actions>
+</PageHeader>
+
+@if (_loading)
+{
+    <LoadingPanel Message="Loading greetings…" />
+}
+else if (_error is not null)
+{
+    <ErrorPanel Message="@_error" Retry="LoadAsync" />
+}
+else
+{
+    <MudPaper Outlined="true" Class="data-card" data-testid="greetings-grid">
+        <div class="data-toolbar">
+            <MudTextField @bind-Value="_search"
+                          Placeholder="Search greetings or languages"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="data-toolbar__search"
+                          data-testid="greeting-search" />
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @_greetings.Count @(_greetings.Count == 1 ? "greeting" : "greetings")
+            </MudText>
+        </div>
+
+        <MudDataGrid T="GreetingRow"
+                     Items="_greetings"
+                     QuickFilter="_quickFilter"
+                     Filterable="true"
+                     SortMode="SortMode.Multiple"
+                     ReadOnly="true"
+                     Hover="true"
+                     Dense="true"
+                     Elevation="0"
+                     RowsPerPage="10">
+            <Columns>
+                <PropertyColumn Property="greeting => greeting.GreetingText" Title="Greeting" />
+                <PropertyColumn Property="greeting => greeting.LanguageName" Title="Language">
+                    <CellTemplate>
+                        <div>
+                            <MudText Typo="Typo.body2">@context.Item.LanguageName</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @context.Item.LanguageCode
+                            </MudText>
+                        </div>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="greeting => greeting.Formal" Title="Style">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                                 Color="@(context.Item.Formal ? Color.Primary : Color.Default)">
+                            @(context.Item.Formal ? "Formal" : "Informal")
+                        </MudChip>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="greeting => greeting.UpdatedAt" Title="Last updated"
+                                Format="d MMM yyyy" />
+                <TemplateColumn Title="Actions" Sortable="false" Filterable="false"
+                                CellClass="row-actions">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Outlined.Visibility"
+                                       Size="Size.Small"
+                                       OnClick="@(() => ViewAsync(context.Item))"
+                                       aria-label="View greeting"
+                                       data-testid="@($"view-greeting-{context.Item.Id}")" />
+                        <MudIconButton Icon="@Icons.Material.Outlined.Edit"
+                                       Size="Size.Small"
+                                       OnClick="@(() => UpdateAsync(context.Item))"
+                                       aria-label="Edit greeting"
+                                       data-testid="@($"edit-greeting-{context.Item.Id}")" />
+                        <MudIconButton Icon="@Icons.Material.Outlined.Delete"
+                                       Size="Size.Small"
+                                       Color="Color.Error"
+                                       OnClick="@(() => DeleteAsync(context.Item))"
+                                       aria-label="Delete greeting"
+                                       data-testid="@($"delete-greeting-{context.Item.Id}")" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-6">
+                    No greetings match the current filters.
+                </MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudDataGridPager T="GreetingRow" />
+            </PagerContent>
+        </MudDataGrid>
+    </MudPaper>
+}
+
+@code {
+    private readonly CancellationTokenSource _disposeToken = new();
+    private List<GreetingRow> _greetings = [];
+    private string? _search;
+    private string? _error;
+    private bool _loading = true;
+    private bool _createActionHandled;
+
+    private Func<GreetingRow, bool> _quickFilter => greeting =>
+        string.IsNullOrWhiteSpace(_search)
+        || greeting.GreetingText.Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || greeting.LanguageName.Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || greeting.LanguageCode.Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || (greeting.Formal ? "formal" : "informal")
+            .Contains(_search, StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        await HandleCreateQueryAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            var greetings = await Http.GetFromJsonAsync<List<GreetingResponse>>(
+                "api/greetings/",
+                _disposeToken.Token) ?? [];
+            var languages = (await Http.GetFromJsonAsync<List<LanguageReference>>(
+                "api/languages/",
+                _disposeToken.Token) ?? [])
+                .ToDictionary(language => language.Id);
+
+            _greetings = greetings
+                .Select(greeting =>
+                {
+                    languages.TryGetValue(greeting.LanguageId, out var language);
+                    return new GreetingRow(
+                        greeting.Id,
+                        greeting.LanguageId,
+                        greeting.GreetingText,
+                        greeting.Formal,
+                        language?.Name ?? "Unknown",
+                        language?.Code ?? "—",
+                        greeting.CreatedAt,
+                        greeting.UpdatedAt);
+                })
+                .ToList();
+        }
+        catch (OperationCanceledException) when (_disposeToken.IsCancellationRequested)
+        {
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Greetings could not be loaded. Check the API connection and try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task HandleCreateQueryAsync()
+    {
+        if (_createActionHandled
+            || !Navigation.ToAbsoluteUri(Navigation.Uri).Query.Contains(
+                "action=create",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _createActionHandled = true;
+        await CreateAsync();
+    }
+
+    private async Task CreateAsync()
+    {
+        var dialog = await DialogService.ShowAsync<CreateGreeting>(
+            "Add greeting",
+            DialogOptions());
+        var result = await dialog.Result;
+
+        if (result?.Canceled == false)
+        {
+            Snackbar.Add("Greeting created.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task ViewAsync(GreetingRow greeting)
+    {
+        var parameters = new DialogParameters<ViewGreeting>
+        {
+            { component => component.Id, greeting.Id }
+        };
+        await DialogService.ShowAsync<ViewGreeting>("Greeting details", parameters, DialogOptions());
+    }
+
+    private async Task UpdateAsync(GreetingRow greeting)
+    {
+        var parameters = new DialogParameters<UpdateGreeting>
+        {
+            { component => component.Id, greeting.Id }
+        };
+        var dialog = await DialogService.ShowAsync<UpdateGreeting>(
+            "Edit greeting",
+            parameters,
+            DialogOptions());
+        var result = await dialog.Result;
+
+        if (result?.Canceled == false)
+        {
+            Snackbar.Add("Greeting updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteAsync(GreetingRow greeting)
+    {
+        var parameters = new DialogParameters<DeleteGreeting>
+        {
+            { component => component.Id, greeting.Id },
+            { component => component.GreetingText, greeting.GreetingText }
+        };
+        var dialog = await DialogService.ShowAsync<DeleteGreeting>(
+            "Delete greeting",
+            parameters,
+            DialogOptions());
+        var result = await dialog.Result;
+
+        if (result?.Canceled == false)
+        {
+            Snackbar.Add("Greeting deleted.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private static DialogOptions DialogOptions() => new()
+    {
+        CloseOnEscapeKey = true,
+        FullWidth = true,
+        MaxWidth = MaxWidth.Small
+    };
+
+    public ValueTask DisposeAsync()
+    {
+        _disposeToken.Cancel();
+        _disposeToken.Dispose();
+        return ValueTask.CompletedTask;
+    }
+
+    private sealed record GreetingResponse(
+        Guid Id,
+        Guid LanguageId,
+        string GreetingText,
+        bool Formal,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+
+    private sealed record LanguageReference(Guid Id, string Name, string Code);
+
+    private sealed record GreetingRow(
+        Guid Id,
+        Guid LanguageId,
+        string GreetingText,
+        bool Formal,
+        string LanguageName,
+        string LanguageCode,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+}

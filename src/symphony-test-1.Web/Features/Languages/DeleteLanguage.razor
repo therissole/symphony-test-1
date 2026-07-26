@@ -1,0 +1,84 @@
+@inject HttpClient Http
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.body1">
+                Delete <strong>@Name</strong>?
+            </MudText>
+            @if (GreetingCount > 0)
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                    This will also delete @GreetingCount
+                    @(GreetingCount == 1 ? "associated greeting" : "associated greetings").
+                </MudAlert>
+            }
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                This action cannot be undone.
+            </MudText>
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_deleting">Cancel</MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled"
+                   OnClick="DeleteAsync" Disabled="_deleting"
+                   data-testid="confirm-delete-language">
+            @if (_deleting)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+            }
+            Delete
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired]
+    public Guid Id { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = string.Empty;
+
+    [Parameter]
+    public int GreetingCount { get; set; }
+
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private bool _deleting;
+    private string? _error;
+
+    private async Task DeleteAsync()
+    {
+        _deleting = true;
+        _error = null;
+
+        try
+        {
+            using var response = await Http.DeleteAsync($"api/languages/{Id}");
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = response.StatusCode == System.Net.HttpStatusCode.NotFound
+                    ? "This language no longer exists. Refresh the list."
+                    : (await ApiProblemReader.ReadAsync(response, CancellationToken.None)).Message;
+                return;
+            }
+
+            MudDialog.Close(DialogResult.Ok(Id));
+        }
+        catch (HttpRequestException)
+        {
+            _error = "The language could not be deleted. Check the API connection and try again.";
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

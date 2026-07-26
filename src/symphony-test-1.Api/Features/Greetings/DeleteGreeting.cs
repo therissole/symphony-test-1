@@ -14,6 +14,7 @@ public static class DeleteGreeting
             .WithSummary("Delete a greeting")
             .WithDescription("Deletes a greeting by its unique identifier.")
             .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound);
     }
 

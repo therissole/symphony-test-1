@@ -1,0 +1,79 @@
+@inject HttpClient Http
+
+<MudDialog>
+    <DialogContent>
+        @if (_loading)
+        {
+            <LoadingPanel Message="Loading language…" />
+        }
+        else if (_error is not null)
+        {
+            <ErrorPanel Message="@_error" />
+        }
+        else if (_language is not null)
+        {
+            <dl class="detail-list" data-testid="language-details">
+                <dt>Name</dt>
+                <dd>@_language.Name</dd>
+                <dt>Code</dt>
+                <dd><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_language.Code</MudChip></dd>
+                <dt>Identifier</dt>
+                <dd>@_language.Id</dd>
+                <dt>Created</dt>
+                <dd>@_language.CreatedAt.ToLocalTime().ToString("f")</dd>
+                <dt>Last updated</dt>
+                <dd>@_language.UpdatedAt.ToLocalTime().ToString("f")</dd>
+            </dl>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Close"
+                   data-testid="close-language-details">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired]
+    public Guid Id { get; set; }
+
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private Response? _language;
+    private bool _loading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            using var response = await Http.GetAsync($"api/languages/{Id}");
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = response.StatusCode == System.Net.HttpStatusCode.NotFound
+                    ? "This language no longer exists."
+                    : (await ApiProblemReader.ReadAsync(response, CancellationToken.None)).Message;
+                return;
+            }
+
+            _language = await response.Content.ReadFromJsonAsync<Response>();
+        }
+        catch (HttpRequestException)
+        {
+            _error = "The language could not be loaded. Check the API connection and try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Close() => MudDialog.Close();
+
+    private sealed record Response(
+        Guid Id,
+        string Name,
+        string Code,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+}

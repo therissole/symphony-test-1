@@ -6,7 +6,7 @@ description: 'An executable .NET reference for request-oriented Vertical Slice A
 # Vertical Slice Architecture Reference
 
 This repository demonstrates Vertical Slice Architecture (VSA) with ASP.NET Core Minimal APIs,
-PostgreSQL, Dapper, and Aspire 13.4 orchestration.
+Blazor WebAssembly, MudBlazor, PostgreSQL, Dapper, Keycloak, and Aspire 13.4 orchestration.
 
 The central rule is simple: **one request is one use case and one slice**. A slice owns everything
 needed to fulfill that request:
@@ -33,6 +33,9 @@ The sample deliberately uses:
 - Request-specific Dapper SQL rather than repositories
 - Typed HTTP results and RFC 7807 Problem Details
 - Real PostgreSQL integration tests through Testcontainers
+- A same-origin WASM administration UI with one component per UI use case
+- OIDC authorization code + PKCE authentication and JWT-protected administration APIs
+- bUnit component tests and a Playwright browser CRUD workflow
 - Shared infrastructure only for genuine platform mechanics
 - Aspire AppHost orchestration and service defaults for local platform concerns
 
@@ -49,6 +52,12 @@ Five independent slices manage a language catalog: list, get, create, update, an
 
 Six independent slices manage greetings, including a purpose-built query by language code and
 formality.
+
+Both capabilities also have list, create, view, update, and delete UI slices. The browser client
+owns its HTTP contracts without referencing API assemblies or sharing server DTOs.
+
+Dashboard, language, and greeting administration require Keycloak authentication. The health
+slice remains public for operational readiness checks.
 
 Continue with the [Quick Start](/quickstart), then read the [Architecture](/architecture) guide
 before adding a use case.

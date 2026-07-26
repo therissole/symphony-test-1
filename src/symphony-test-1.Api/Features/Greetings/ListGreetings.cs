@@ -27,7 +27,8 @@ public static class ListGreetings
             .WithName("GetAllGreetings")
             .WithSummary("List greetings")
             .WithDescription("Returns every stored greeting, ordered by greeting text.")
-            .Produces<List<Response>>();
+            .Produces<List<Response>>()
+            .Produces(StatusCodes.Status401Unauthorized);
     }
 
     private static async Task<Ok<List<Response>>> Handle(

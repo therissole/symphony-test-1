@@ -39,7 +39,9 @@ The feature registration file only composes the capability's routes.
 ```mermaid
 flowchart LR
     Client["HTTP client"] --> Pipeline["ASP.NET Core pipeline"]
-    Pipeline --> Slice["One request slice"]
+    Pipeline --> Authentication{"Authenticated?"}
+    Authentication -->|No| Unauthorized["401 Unauthorized"]
+    Authentication -->|Yes| Slice["One administration request slice"]
     Slice --> Validation{"Input valid?"}
     Validation -->|No| ValidationProblem["400 Validation Problem"]
     Validation -->|Yes| Database["Npgsql + request-specific Dapper SQL"]
@@ -77,7 +79,21 @@ src/symphony-test-1.Api/
 └── Program.cs
 
 src/symphony-test-1.AppHost/
-└── AppHost.cs                     Aspire resource graph and startup ordering
+├── AppHost.cs                     Aspire resource graph and startup ordering
+├── Realms/                        local Keycloak realm import
+└── Themes/                        local Keycloak login-theme extension
+
+src/symphony-test-1.Web/
+├── Components/
+│   ├── Layout/                    application shell and navigation
+│   └── <shared presentation states>
+├── Features/
+│   ├── Dashboard/
+│   ├── Languages/                 one component per UI use case
+│   └── Greetings/                 one component per UI use case
+└── Infrastructure/
+    ├── ApiProblem.cs              RFC 7807 parsing mechanics
+    └── Authentication/            test-isolated authentication mechanics
 
 src/symphony-test-1.DatabaseMigrations/
 └── Program.cs                     Versioned, checksum-verified SQL migration runner
@@ -101,6 +117,57 @@ src/symphony-test-1.ServiceDefaults/
 
 Keeping these decisions together makes the use case understandable and changeable in one place.
 
+## WebAssembly UI slices
+
+The MudBlazor client is a standalone Blazor WebAssembly project referenced by the API only for
+static-asset hosting. The dependency points from host to client: the client does not reference the
+API assembly, persistence packages, or server DTOs. It calls relative `/api` routes over
+`HttpClient`, so development and deployment remain same-origin without CORS or separate endpoint
+configuration.
+
+UI use cases follow the same cohesion rule as API requests:
+
+```text
+Features/Languages/
+├── ListLanguages.razor
+├── CreateLanguage.razor
+├── ViewLanguage.razor
+├── UpdateLanguage.razor
+└── DeleteLanguage.razor
+```
+
+Each component owns the HTTP operation, the smallest request and response records it consumes,
+loading and failure states, and interaction flow. Similar records are intentionally repeated
+between operations because they may evolve independently. The client has no resource-wide API
+clients, services, repositories, or shared server contracts.
+
+Only stable presentation mechanics are shared: the application shell, page header, loading/error
+states, and RFC 7807 parsing. `MudDataGrid` performs client-side sort, quick search, column filters,
+and paging because the reference endpoints return the complete small catalogs. A larger dataset
+should introduce a dedicated server-side search/list slice rather than hiding paging policy in a
+generic client.
+
+Health is deliberately absent from the administration navigation. It remains an operational
+contract for orchestrators and diagnostics, not a user-managed catalog capability.
+
+## Authentication boundary
+
+Authentication is shared platform infrastructure, not a business slice. Aspire starts Keycloak
+and imports a local realm. The WebAssembly client uses a public OIDC client with authorization code
+and PKCE, then attaches access tokens only to same-origin API calls.
+
+The `/api` route group requires authorization by default. `/api/health` explicitly opts out with
+`AllowAnonymous`; `/api/authentication/configuration` also opts out because it exposes only the
+current public authority and client ID required to initiate OIDC. Language and greeting groups
+inherit the protected default. The API validates issuer, audience, signature, signing key, and
+lifetime. Protecting Razor routes provides the user experience, while API authorization remains
+the actual data boundary because browser-delivered code is always inspectable.
+
+Aspire does not pin Keycloak to a host port. It resolves an available endpoint for each run and
+injects that realm authority into the API. The browser loads the corresponding public
+configuration from the same-origin API before registering OIDC, which keeps multiple isolated
+Aspire environments independent.
+
 ## What is shared
 
 Shared code is intentionally small:
@@ -111,8 +178,11 @@ Shared code is intentionally small:
 | Global Problem Details | Unexpected failures need one safe response policy |
 | OpenTelemetry logging | Exports structured `ILogger` events with active trace and span context |
 | Aspire service defaults | Captures telemetry and supplies platform health and resilience |
+| Keycloak/JWT authentication | Identity validation and request authorization are platform boundaries |
 | FluentValidation registration | Discovers internal validators while rules remain inside slices |
 | Capability route registration | Composes slices without owning their behavior |
+| UI shell and state components | Stable visual behavior shared by unrelated pages |
+| RFC 7807 client parsing | HTTP error mechanics without resource-specific behavior |
 
 Database migrations remain centralized because the sample uses one relational schema. The AppHost
 runs the migration project to completion before it starts the API. The runner serializes concurrent
@@ -156,6 +226,7 @@ should not be added merely as an architectural badge.
   keys such as `languageId` and `greetingText`.
 - Invalid input returns `application/problem+json` validation details.
 - Missing resources return `404 Not Found`.
+- Anonymous administration requests return `401 Unauthorized`.
 - Language uniqueness violations return `409 Conflict`.
 - Greeting foreign-key violations return a `400` validation problem on `languageId`.
 - Unexpected exceptions are logged and rendered safely by global Problem Details.
@@ -180,13 +251,21 @@ appropriate domain model or service. Do not impose one domain pattern on every r
 
 ```text
 tests/unit/Features/             deterministic slice rules
+tests/unit/Architecture/         mechanical dependency and slice-shape rules
+tests/ui/Features/               fast bUnit component states
 tests/integration/Features/      every slice through HTTP and PostgreSQL
-tests/e2e/Features/              workflows crossing slices
+tests/integration/Infrastructure hosted WASM route behavior
+tests/e2e/Features/              API and Playwright workflows crossing slices
 ```
 
 Integration tests are the primary proof because most slices coordinate HTTP binding, validation,
 SQL, PostgreSQL constraints, and response mapping. Unit tests are reserved for deterministic logic;
-they do not mock nonexistent service and repository layers.
+they do not mock nonexistent service and repository layers. Mechanical tests protect the client
+dependency direction and prevent shared resource clients/services/repositories from quietly
+reintroducing horizontal layers. bUnit covers fast rendering states, while Playwright drives the
+deployed WASM UI through every CRUD operation against a Testcontainers PostgreSQL database.
+Authentication boundary tests use a test-only scheme to prove both anonymous rejection and public
+health behavior without weakening production bearer validation.
 
 The migration harness applies all ordered `V*.sql` files, so adding a migration does not require
 editing test infrastructure.

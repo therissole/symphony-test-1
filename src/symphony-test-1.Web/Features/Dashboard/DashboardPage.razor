@@ -1,0 +1,215 @@
+@page "/"
+@attribute [Authorize]
+@implements IAsyncDisposable
+@inject HttpClient Http
+
+<PageTitle>Dashboard | Symphony Administration</PageTitle>
+
+<PageHeader Title="Dashboard"
+            Description="A concise operational view of the language and greeting catalog." />
+
+@if (_loading)
+{
+    <LoadingPanel Message="Loading dashboard…" />
+}
+else if (_error is not null)
+{
+    <ErrorPanel Message="@_error" Retry="LoadAsync" />
+}
+else
+{
+    <MudGrid Spacing="3" data-testid="dashboard">
+        <MudItem xs="12" sm="6" lg="3">
+            <MudPaper Outlined="true" Class="metric-card">
+                <div class="metric-card__icon">
+                    <MudIcon Icon="@Icons.Material.Outlined.Translate" />
+                </div>
+                <MudText Typo="Typo.overline" Color="Color.Secondary">Languages</MudText>
+                <MudText Typo="Typo.h4" data-testid="language-count">@_languages.Count</MudText>
+                <MudLink Href="/languages" Typo="Typo.body2">Manage languages</MudLink>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" lg="3">
+            <MudPaper Outlined="true" Class="metric-card">
+                <div class="metric-card__icon">
+                    <MudIcon Icon="@Icons.Material.Outlined.RecordVoiceOver" />
+                </div>
+                <MudText Typo="Typo.overline" Color="Color.Secondary">Greetings</MudText>
+                <MudText Typo="Typo.h4" data-testid="greeting-count">@_greetings.Count</MudText>
+                <MudLink Href="/greetings" Typo="Typo.body2">Manage greetings</MudLink>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" lg="3">
+            <MudPaper Outlined="true" Class="metric-card">
+                <div class="metric-card__icon">
+                    <MudIcon Icon="@Icons.Material.Outlined.BusinessCenter" />
+                </div>
+                <MudText Typo="Typo.overline" Color="Color.Secondary">Formal greetings</MudText>
+                <MudText Typo="Typo.h4">@_greetings.Count(greeting => greeting.Formal)</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Business-ready entries</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" lg="3">
+            <MudPaper Outlined="true" Class="metric-card">
+                <div class="metric-card__icon">
+                    <MudIcon Icon="@Icons.Material.Outlined.Schedule" />
+                </div>
+                <MudText Typo="Typo.overline" Color="Color.Secondary">Last updated</MudText>
+                <MudText Typo="Typo.h6">@LastUpdatedText</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Across the catalog</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" lg="8">
+            <MudPaper Outlined="true" Class="dashboard-card">
+                <div class="dashboard-card__header">
+                    <div>
+                        <MudText Typo="Typo.h6">Recently updated greetings</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            The latest catalog activity.
+                        </MudText>
+                    </div>
+                    <MudButton Href="/greetings" Variant="Variant.Text" Color="Color.Primary"
+                               EndIcon="@Icons.Material.Filled.ArrowForward">
+                        View all
+                    </MudButton>
+                </div>
+                @if (_greetings.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-6">
+                        No greetings have been created yet.
+                    </MudText>
+                }
+                else
+                {
+                    <MudTable Items="@RecentGreetings" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Greeting</MudTh>
+                            <MudTh>Language</MudTh>
+                            <MudTh>Style</MudTh>
+                            <MudTh>Updated</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Greeting">@context.GreetingText</MudTd>
+                            <MudTd DataLabel="Language">@LanguageName(context.LanguageId)</MudTd>
+                            <MudTd DataLabel="Style">
+                                <MudChip T="string" Size="Size.Small"
+                                         Variant="Variant.Outlined"
+                                         Color="@(context.Formal ? Color.Primary : Color.Default)">
+                                    @(context.Formal ? "Formal" : "Informal")
+                                </MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Updated">@context.UpdatedAt.ToLocalTime().ToString("d MMM yyyy")</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" lg="4">
+            <MudPaper Outlined="true" Class="dashboard-card">
+                <div class="dashboard-card__header">
+                    <div>
+                        <MudText Typo="Typo.h6">Quick actions</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Common catalog tasks.
+                        </MudText>
+                    </div>
+                </div>
+                <MudList T="string" Class="quick-actions">
+                    <MudListItem Href="/languages?action=create"
+                                 Icon="@Icons.Material.Outlined.AddCircle">
+                        Add a language
+                    </MudListItem>
+                    <MudListItem Href="/greetings?action=create"
+                                 Icon="@Icons.Material.Outlined.AddComment">
+                        Add a greeting
+                    </MudListItem>
+                    <MudListItem Href="/languages"
+                                 Icon="@Icons.Material.Outlined.ManageSearch">
+                        Review language catalog
+                    </MudListItem>
+                </MudList>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private readonly CancellationTokenSource _disposeToken = new();
+    private List<LanguageResponse> _languages = [];
+    private List<GreetingResponse> _greetings = [];
+    private bool _loading = true;
+    private string? _error;
+
+    private IEnumerable<GreetingResponse> RecentGreetings =>
+        _greetings.OrderByDescending(greeting => greeting.UpdatedAt).Take(5);
+
+    private string LastUpdatedText
+    {
+        get
+        {
+            var timestamps = _languages.Select(language => language.UpdatedAt)
+                .Concat(_greetings.Select(greeting => greeting.UpdatedAt))
+                .ToList();
+
+            return timestamps.Count == 0
+                ? "No activity"
+                : timestamps.Max().ToLocalTime().ToString("d MMM yyyy");
+        }
+    }
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            _languages = await Http.GetFromJsonAsync<List<LanguageResponse>>(
+                "api/languages/",
+                _disposeToken.Token) ?? [];
+            _greetings = await Http.GetFromJsonAsync<List<GreetingResponse>>(
+                "api/greetings/",
+                _disposeToken.Token) ?? [];
+        }
+        catch (OperationCanceledException) when (_disposeToken.IsCancellationRequested)
+        {
+        }
+        catch (HttpRequestException)
+        {
+            _error = "The catalog summary is unavailable. Check the API connection and try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private string LanguageName(Guid languageId) =>
+        _languages.FirstOrDefault(language => language.Id == languageId)?.Name ?? "Unknown";
+
+    public ValueTask DisposeAsync()
+    {
+        _disposeToken.Cancel();
+        _disposeToken.Dispose();
+        return ValueTask.CompletedTask;
+    }
+
+    private sealed record LanguageResponse(
+        Guid Id,
+        string Name,
+        string Code,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+
+    private sealed record GreetingResponse(
+        Guid Id,
+        Guid LanguageId,
+        string GreetingText,
+        bool Formal,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+}

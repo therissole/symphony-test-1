@@ -1,0 +1,73 @@
+---
+title: Authentication
+description: 'Keycloak OIDC authentication for the administration application and APIs'
+---
+
+# Authentication
+
+The administration application uses Keycloak as its OpenID Connect provider. The Blazor
+WebAssembly client is a public client named `symphony-admin` and uses the authorization code flow
+with PKCE. It never contains a client secret.
+
+After sign-in, the client attaches the access token only to same-origin requests. The API validates
+the Keycloak issuer, the `symphony-api` audience, the signing key, and token lifetime before any
+language or greeting slice runs.
+
+## Protected surfaces
+
+- Dashboard at `/`
+- Language management at `/languages`
+- Greeting management at `/greetings`
+- Every `/api/languages` and `/api/greetings` endpoint
+
+The `/api/health` endpoint remains public so Aspire, Docker Compose, and external orchestrators can
+check readiness without obtaining an interactive user token.
+
+`/api/authentication/configuration` is also public. It returns only the OIDC authority and public
+client ID needed to begin sign-in; it never returns a client secret, token, or administrative
+credential.
+
+Client route protection improves navigation and sign-in behavior, but it is not the security
+boundary: WebAssembly assets are downloadable by design. API authorization independently protects
+all administration data and commands.
+
+## Local development realm
+
+Aspire assigns Keycloak an available endpoint for each run and imports
+`src/symphony-test-1.AppHost/Realms/symphony-realm.json`. The AppHost passes the resolved realm
+authority to the API, and the WebAssembly client reads it from the public authentication
+configuration endpoint at startup. This permits simultaneous isolated Aspire environments
+without a shared fixed Keycloak port.
+
+The imported realm selects the small local `symphony` Keycloak login-theme extension. It retains
+Keycloak's supported `keycloak.v2` templates and adds only the Symphony palette, wordmark, and
+form polish. Docker Compose mounts the same extension, so its local sign-in page matches Aspire.
+
+The realm contains a disposable local user:
+
+- Username: `symphony-admin`
+- Temporary password: `ChangeMe!12345`
+
+Keycloak requires the password to be changed on first sign-in. These are local reference
+credentials, not production credentials.
+
+The realm also defines:
+
+- `symphony-admin`, a public PKCE browser client
+- `symphony-api`, the bearer-token audience
+- an audience mapper that places `symphony-api` in access tokens
+
+Because Aspire assigns the browser application a different localhost port for every isolated run,
+the disposable development client permits any redirect URI and web origin. Keycloak does not
+support a wildcard in the URI port, only at the end of a URI pattern. This deliberately broad
+setting is confined to the committed local-development realm.
+
+Service ports isolate the two Keycloak processes, but browser cookies are scoped by host and path,
+not by port. Two environments that both use `localhost` and the `symphony` realm therefore require
+separate browser profiles for simultaneous interactive sign-in. Alternatively, give each
+environment a distinct development hostname or Keycloak relative path.
+
+The Aspire realm import is a local-development mechanism. A production deployment must provision
+Keycloak separately, use HTTPS, replace the wildcard with exact deployed callback and logout
+URLs, restrict web origins to deployed URLs, and override
+`Authentication:Authority` and `Authentication:WebClientId` in the API configuration.

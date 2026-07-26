@@ -5,6 +5,9 @@ description: 'Language request and response contracts'
 
 # Languages API
 
+Every language endpoint requires a valid Keycloak bearer token with the `symphony-api` audience.
+Anonymous requests return `401 Unauthorized`.
+
 ## Language response
 
 ```json
@@ -26,7 +29,8 @@ Returns all languages ordered by name.
 - `200 OK` — array of language responses
 
 ```bash
-curl http://localhost:8080/api/languages
+curl http://localhost:8081/api/languages \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 ## GET /api/languages/{id}
@@ -41,7 +45,8 @@ curl http://localhost:8080/api/languages
 - `404 Not Found` — no language has the supplied ID
 
 ```bash
-curl http://localhost:8080/api/languages/3fa85f64-5717-4562-b3fc-2c963f66afa6
+curl http://localhost:8081/api/languages/3fa85f64-5717-4562-b3fc-2c963f66afa6 \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 ## POST /api/languages
@@ -55,7 +60,8 @@ curl http://localhost:8080/api/languages/3fa85f64-5717-4562-b3fc-2c963f66afa6
 </ParamField>
 
 ```bash
-curl -X POST http://localhost:8080/api/languages \
+curl -X POST http://localhost:8081/api/languages \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"name":"French","code":"fr"}'
 ```
@@ -71,7 +77,8 @@ curl -X POST http://localhost:8080/api/languages \
 Replaces the editable name and code fields using the same validation rules as create.
 
 ```bash
-curl -X PUT http://localhost:8080/api/languages/3fa85f64-5717-4562-b3fc-2c963f66afa6 \
+curl -X PUT http://localhost:8081/api/languages/3fa85f64-5717-4562-b3fc-2c963f66afa6 \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"name":"English (US)","code":"en-US"}'
 ```

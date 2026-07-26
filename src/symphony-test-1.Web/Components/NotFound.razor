@@ -1,0 +1,16 @@
+@page "/not-found"
+@layout MainLayout
+
+<PageTitle>Page not found | Symphony Administration</PageTitle>
+
+<MudPaper Class="not-found-panel" Outlined="true">
+    <MudIcon Icon="@Icons.Material.Outlined.ExploreOff" Color="Color.Primary" Size="Size.Large" />
+    <MudText Typo="Typo.h4" HtmlTag="h1">Page not found</MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary">
+        The page may have moved or the address may be incorrect.
+    </MudText>
+    <MudButton Href="/" Color="Color.Primary" Variant="Variant.Filled"
+               StartIcon="@Icons.Material.Filled.Home">
+        Return to dashboard
+    </MudButton>
+</MudPaper>

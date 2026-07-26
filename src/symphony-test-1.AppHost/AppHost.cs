@@ -1,8 +1,12 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+var keycloak = builder
+    .AddKeycloak("keycloak")
+    .WithRealmImport("./Realms")
+    .WithBindMount("./Themes", "/opt/keycloak/themes", isReadOnly: true);
+
 var postgres = builder.AddPostgres("postgres")
-    .WithImageTag("18-alpine")
-    .WithDataVolume();
+    .WithImageTag("18-alpine");
 
 var database = postgres.AddDatabase(
     name: "DefaultConnection",
@@ -16,8 +20,17 @@ var migrations = builder
 var api = builder
     .AddProject<Projects.symphony_test_1_Api>("api")
     .WithReference(database)
+    .WithReference(keycloak)
+    .WithEnvironment(
+        "Authentication__Authority",
+        $"{keycloak.GetEndpoint("http")}/realms/symphony")
+    .WithEnvironment("Authentication__RequireHttpsMetadata", "false")
     .WaitForCompletion(migrations)
+    .WaitFor(keycloak)
     .WithHttpHealthCheck("/api/health");
+
+api.WithUrlForEndpoint("https", url => url.DisplayText = "Symphony administration")
+    .WithUrlForEndpoint("http", url => url.DisplayText = "Symphony administration");
 
 builder
     .AddJavaScriptApp("docs", "../../docs")

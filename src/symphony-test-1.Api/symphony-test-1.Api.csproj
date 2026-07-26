@@ -20,6 +20,8 @@
     <PackageReference Include="Aspire.Npgsql" Version="13.4.6" />
     <PackageReference Include="Dapper" Version="2.1.79" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
     <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
@@ -27,6 +29,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\symphony-test-1.ServiceDefaults\symphony-test-1.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\symphony-test-1.Web\symphony-test-1.Web.csproj" />
   </ItemGroup>
 
 </Project>

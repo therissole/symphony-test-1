@@ -3,6 +3,7 @@ WORKDIR /src
 
 COPY ["src/symphony-test-1.Api/symphony-test-1.Api.csproj", "src/symphony-test-1.Api/"]
 COPY ["src/symphony-test-1.ServiceDefaults/symphony-test-1.ServiceDefaults.csproj", "src/symphony-test-1.ServiceDefaults/"]
+COPY ["src/symphony-test-1.Web/symphony-test-1.Web.csproj", "src/symphony-test-1.Web/"]
 RUN dotnet restore "src/symphony-test-1.Api/symphony-test-1.Api.csproj"
 
 COPY . .

@@ -1,0 +1,26 @@
+<MudAlert Severity="Severity.Error" Variant="Variant.Outlined" data-testid="error-panel">
+    <div class="d-flex flex-wrap align-center justify-space-between gap-3">
+        <div>
+            <MudText Typo="Typo.subtitle2">@Title</MudText>
+            <MudText Typo="Typo.body2">@Message</MudText>
+        </div>
+        @if (Retry.HasDelegate)
+        {
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="Retry"
+                       StartIcon="@Icons.Material.Filled.Refresh">
+                Try again
+            </MudButton>
+        }
+    </div>
+</MudAlert>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "Something went wrong";
+
+    [Parameter, EditorRequired]
+    public string Message { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback Retry { get; set; }
+}

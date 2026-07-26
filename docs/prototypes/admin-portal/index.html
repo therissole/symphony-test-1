@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive prototype for the Symphony administration portal.">
+  <title>Symphony Admin Portal Prototype</title>
+  <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+  <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+    <symbol id="icon-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></symbol>
+    <symbol id="icon-language" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></symbol>
+    <symbol id="icon-greeting" viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4Z"/><path d="M8 9h8M8 12h5"/></symbol>
+    <symbol id="icon-add" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+    <symbol id="icon-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+    <symbol id="icon-sort" viewBox="0 0 24 24"><path d="m8 8 4-4 4 4M12 4v16"/></symbol>
+    <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+    <symbol id="icon-eye" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></symbol>
+    <symbol id="icon-edit" viewBox="0 0 24 24"><path d="m4 16-.8 4.8L8 20 19 9l-4-4Z"/><path d="m13 7 4 4"/></symbol>
+    <symbol id="icon-delete" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></symbol>
+    <symbol id="icon-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="icon-logout" viewBox="0 0 24 24"><path d="M10 5H5v14h5M14 8l4 4-4 4M9 12h9"/></symbol>
+    <symbol id="icon-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v7H4V6h7"/></symbol>
+  </svg>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-start">
+        <button class="icon-button nav-toggle" id="navToggle" aria-label="Toggle navigation">
+          <svg><use href="#icon-menu"></use></svg>
+        </button>
+        <a class="brand" href="#dashboard" aria-label="Symphony administration home">
+          <span class="brand-mark">S</span>
+          <span class="brand-copy">
+            <strong>Symphony</strong>
+            <span>Administration</span>
+          </span>
+        </a>
+      </div>
+      <div class="topbar-end">
+        <span class="environment-chip"><span></span>Prototype</span>
+        <div class="profile">
+          <button class="profile-button" id="profileButton" aria-expanded="false" aria-haspopup="menu">
+            <span class="avatar">AJ</span>
+            <span class="profile-copy">
+              <strong>Alex Johnson</strong>
+              <span>Administrator</span>
+            </span>
+            <span class="profile-caret">⌄</span>
+          </button>
+          <div class="profile-menu" id="profileMenu" role="menu" hidden>
+            <div class="profile-menu-header">
+              <strong>Alex Johnson</strong>
+              <span>alex.johnson@example.com</span>
+            </div>
+            <button role="menuitem"><svg><use href="#icon-user"></use></svg>Profile placeholder</button>
+            <button role="menuitem"><svg><use href="#icon-logout"></use></svg>Sign out placeholder</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <aside class="sidebar" id="sidebar">
+      <nav aria-label="Primary navigation">
+        <a class="nav-item" href="#dashboard" data-route="dashboard">
+          <svg><use href="#icon-home"></use></svg>
+          <span>Dashboard</span>
+        </a>
+        <a class="nav-item" href="#languages" data-route="languages">
+          <svg><use href="#icon-language"></use></svg>
+          <span>Languages</span>
+          <span class="nav-count" id="languageNavCount">0</span>
+        </a>
+        <a class="nav-item" href="#greetings" data-route="greetings">
+          <svg><use href="#icon-greeting"></use></svg>
+          <span>Greetings</span>
+          <span class="nav-count" id="greetingNavCount">0</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-footer-title">Reference application</div>
+        <p>Interactive UI concept using local prototype data.</p>
+        <a href="../../architecture.mdx">Architecture guide <svg><use href="#icon-external"></use></svg></a>
+      </div>
+    </aside>
+
+    <button class="nav-scrim" id="navScrim" aria-label="Close navigation"></button>
+
+    <main class="main-content">
+      <div class="page-heading">
+        <div>
+          <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <span>Administration</span>
+            <svg><use href="#icon-chevron"></use></svg>
+            <span id="breadcrumbCurrent">Dashboard</span>
+          </nav>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p id="pageDescription">An overview of the language and greeting catalog.</p>
+        </div>
+        <div id="pageActions"></div>
+      </div>
+
+      <section class="page" id="dashboardPage" data-page="dashboard">
+        <div class="metric-grid">
+          <article class="metric-card">
+            <div class="metric-icon blue"><svg><use href="#icon-language"></use></svg></div>
+            <div>
+              <span class="metric-label">Languages</span>
+              <strong class="metric-value" id="languageMetric">0</strong>
+              <span class="metric-caption">Available in the catalog</span>
+            </div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon teal"><svg><use href="#icon-greeting"></use></svg></div>
+            <div>
+              <span class="metric-label">Greetings</span>
+              <strong class="metric-value" id="greetingMetric">0</strong>
+              <span class="metric-caption">Across all languages</span>
+            </div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon purple"><svg><use href="#icon-check"></use></svg></div>
+            <div>
+              <span class="metric-label">Formal greetings</span>
+              <strong class="metric-value" id="formalMetric">0</strong>
+              <span class="metric-caption" id="formalCaption">0% of greetings</span>
+            </div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon amber"><svg><use href="#icon-clock"></use></svg></div>
+            <div>
+              <span class="metric-label">Last updated</span>
+              <strong class="metric-value metric-date" id="lastUpdatedMetric">—</strong>
+              <span class="metric-caption">Most recent catalog change</span>
+            </div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="content-card quick-card">
+            <div class="card-header">
+              <div><h2>Catalog management</h2><p>Common administration tasks</p></div>
+            </div>
+            <div class="quick-actions">
+              <button data-quick-create="language">
+                <span class="quick-icon blue"><svg><use href="#icon-add"></use></svg></span>
+                <span><strong>Add a language</strong><small>Create a new language record</small></span>
+                <svg class="quick-chevron"><use href="#icon-chevron"></use></svg>
+              </button>
+              <button data-quick-create="greeting">
+                <span class="quick-icon teal"><svg><use href="#icon-add"></use></svg></span>
+                <span><strong>Add a greeting</strong><small>Associate text with a language</small></span>
+                <svg class="quick-chevron"><use href="#icon-chevron"></use></svg>
+              </button>
+              <button data-quick-route="languages">
+                <span class="quick-icon neutral"><svg><use href="#icon-language"></use></svg></span>
+                <span><strong>Manage languages</strong><small>Search, sort, view and edit</small></span>
+                <svg class="quick-chevron"><use href="#icon-chevron"></use></svg>
+              </button>
+              <button data-quick-route="greetings">
+                <span class="quick-icon neutral"><svg><use href="#icon-greeting"></use></svg></span>
+                <span><strong>Manage greetings</strong><small>Filter by language or formality</small></span>
+                <svg class="quick-chevron"><use href="#icon-chevron"></use></svg>
+              </button>
+            </div>
+          </article>
+
+          <article class="content-card activity-card">
+            <div class="card-header">
+              <div><h2>Recently updated</h2><p>Latest changes in the catalog</p></div>
+            </div>
+            <div class="activity-list" id="activityList"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="languagesPage" data-page="languages" hidden>
+        <article class="content-card data-card">
+          <div class="table-toolbar">
+            <label class="search-field">
+              <svg><use href="#icon-search"></use></svg>
+              <input id="languageSearch" type="search" placeholder="Search name or code" aria-label="Search languages" autocomplete="off">
+            </label>
+            <div class="toolbar-spacer"></div>
+            <span class="result-count" id="languageResultCount"></span>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th><button class="sort-button" data-language-sort="name">Name <svg><use href="#icon-sort"></use></svg></button></th>
+                  <th><button class="sort-button" data-language-sort="code">Code <svg><use href="#icon-sort"></use></svg></button></th>
+                  <th><button class="sort-button" data-language-sort="updatedAt">Last updated <svg><use href="#icon-sort"></use></svg></button></th>
+                  <th><span>Greetings</span></th>
+                  <th class="actions-column"><span>Actions</span></th>
+                </tr>
+              </thead>
+              <tbody id="languageRows"></tbody>
+            </table>
+          </div>
+          <div class="table-footer"><span id="languageFooterCount"></span><span>Rows per page: 10</span><span>1–<span id="languagePageEnd">0</span> of <span id="languagePageTotal">0</span></span></div>
+        </article>
+      </section>
+
+      <section class="page" id="greetingsPage" data-page="greetings" hidden>
+        <article class="content-card data-card">
+          <div class="table-toolbar greeting-toolbar">
+            <label class="search-field">
+              <svg><use href="#icon-search"></use></svg>
+              <input id="greetingSearch" type="search" placeholder="Search greeting text" aria-label="Search greetings" autocomplete="off">
+            </label>
+            <label class="filter-field">
+              <svg><use href="#icon-filter"></use></svg>
+              <select id="greetingLanguageFilter" aria-label="Filter by language">
+                <option value="">All languages</option>
+              </select>
+            </label>
+            <label class="filter-field">
+              <select id="greetingFormalFilter" aria-label="Filter by formality">
+                <option value="">All types</option>
+                <option value="formal">Formal</option>
+                <option value="informal">Informal</option>
+              </select>
+            </label>
+            <div class="toolbar-spacer"></div>
+            <span class="result-count" id="greetingResultCount"></span>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th><button class="sort-button" data-greeting-sort="greetingText">Greeting <svg><use href="#icon-sort"></use></svg></button></th>
+                  <th><button class="sort-button" data-greeting-sort="languageName">Language <svg><use href="#icon-sort"></use></svg></button></th>
+                  <th><button class="sort-button" data-greeting-sort="formal">Type <svg><use href="#icon-sort"></use></svg></button></th>
+                  <th><button class="sort-button" data-greeting-sort="updatedAt">Last updated <svg><use href="#icon-sort"></use></svg></button></th>
+                  <th class="actions-column"><span>Actions</span></th>
+                </tr>
+              </thead>
+              <tbody id="greetingRows"></tbody>
+            </table>
+          </div>
+          <div class="table-footer"><span id="greetingFooterCount"></span><span>Rows per page: 10</span><span>1–<span id="greetingPageEnd">0</span> of <span id="greetingPageTotal">0</span></span></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div class="dialog-backdrop" id="dialogBackdrop" hidden>
+    <section class="dialog" id="entityDialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+      <header class="dialog-header">
+        <div><span class="dialog-eyebrow" id="dialogEyebrow"></span><h2 id="dialogTitle"></h2></div>
+        <button class="icon-button" id="dialogClose" aria-label="Close dialog"><svg><use href="#icon-close"></use></svg></button>
+      </header>
+      <div class="dialog-body" id="dialogBody"></div>
+      <footer class="dialog-footer" id="dialogFooter"></footer>
+    </section>
+  </div>
+
+  <div class="dialog-backdrop" id="confirmBackdrop" hidden>
+    <section class="dialog confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="danger-icon"><svg><use href="#icon-delete"></use></svg></div>
+      <h2 id="confirmTitle">Delete record?</h2>
+      <p id="confirmMessage"></p>
+      <div class="dialog-footer">
+        <button class="button secondary" id="confirmCancel">Cancel</button>
+        <button class="button danger" id="confirmDelete"><svg><use href="#icon-delete"></use></svg>Delete</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span><svg><use href="#icon-check"></use></svg></span>
+    <div><strong id="toastTitle">Saved</strong><p id="toastMessage"></p></div>
+    <button id="toastClose" aria-label="Dismiss notification"><svg><use href="#icon-close"></use></svg></button>
+  </div>
+
+  <script src="prototype.js"></script>
+</body>
+</html>

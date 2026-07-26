@@ -26,6 +26,7 @@ public static class GetGreetingByLanguage
             .WithDescription(
                 "Returns one greeting matching a language code and optional formality preference.")
             .Produces<Response>()
+            .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound);
     }
 

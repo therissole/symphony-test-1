@@ -8,6 +8,7 @@ description: 'Database connectivity health endpoint'
 ## GET /api/health
 
 Checks whether the API can open a PostgreSQL connection and execute `SELECT 1`.
+No authentication is required.
 
 ### Healthy response
 
@@ -37,7 +38,7 @@ The API logs the underlying failure but deliberately does not expose connection 
 details, or exception messages in the response.
 
 ```bash
-curl http://localhost:8080/api/health
+curl http://localhost:8081/api/health
 ```
 
 The Aspire AppHost and Docker Compose use this endpoint as the API health check. It is a

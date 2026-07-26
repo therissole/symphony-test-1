@@ -27,6 +27,7 @@ public static class GetLanguage
             .WithSummary("Get a language")
             .WithDescription("Returns a language from the catalog by its unique identifier.")
             .Produces<Response>()
+            .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound);
     }
 

@@ -1,0 +1,9 @@
+<MudPaper Outlined="true" Class="state-panel" data-testid="loading-panel">
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Medium" />
+    <MudText Typo="Typo.body2" Color="Color.Secondary">@Message</MudText>
+</MudPaper>
+
+@code {
+    [Parameter]
+    public string Message { get; set; } = "Loading…";
+}

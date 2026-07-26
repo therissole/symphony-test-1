@@ -25,7 +25,8 @@ public static class ListLanguages
             .WithName("GetAllLanguages")
             .WithSummary("List languages")
             .WithDescription("Returns every language in the catalog, ordered by name.")
-            .Produces<List<Response>>();
+            .Produces<List<Response>>()
+            .Produces(StatusCodes.Status401Unauthorized);
     }
 
     private static async Task<Ok<List<Response>>> Handle(

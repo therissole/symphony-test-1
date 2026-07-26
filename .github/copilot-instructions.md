@@ -1,7 +1,8 @@
 # Copilot Instructions
 
 This is a .NET 10 reference implementation of request-oriented Vertical Slice Architecture using
-ASP.NET Core Minimal APIs, PostgreSQL, Dapper, NUnit, and Testcontainers.
+ASP.NET Core Minimal APIs, Blazor WebAssembly, MudBlazor, PostgreSQL, Dapper, NUnit, and
+Testcontainers.
 
 ## Non-negotiable architecture
 
@@ -15,6 +16,12 @@ ASP.NET Core Minimal APIs, PostgreSQL, Dapper, NUnit, and Testcontainers.
 - Do not add MediatR just to dispatch handlers. VSA does not require it.
 - Share platform mechanics only: database data source, exception handling, OpenTelemetry, and
   structured logging.
+- Keep UI use cases under `src/symphony-test-1.Web/Features/<Capability>/`, with one Razor
+  component per list/create/view/update/delete interaction.
+- UI slices own the HTTP call, local request/response records, state, and error handling. Do not
+  add resource-wide API clients/services or reference the API project from the WASM project.
+- Share only stable presentation mechanics under `Components/` and transport mechanics under
+  `Infrastructure/`.
 
 Load `.github/skills/build-vertical-slice/SKILL.md` when adding, changing, reviewing, or refactoring
 an endpoint.
@@ -40,6 +47,10 @@ an endpoint.
 - Unit-test nested request validators or deterministic domain rules directly.
 - Integration-test slice behavior through HTTP with Testcontainers PostgreSQL.
 - Reserve end-to-end tests for multi-slice workflows.
+- Use bUnit for fast component states and Playwright for browser workflows against the hosted WASM
+  app and Testcontainers PostgreSQL.
+- Preserve the mechanical architecture tests that enforce client dependency direction and UI
+  slice boundaries.
 - Test relevant success, validation, conflict, not-found, and constraint paths.
 
 Before completion, run a warning-free solution build, all tests with Docker available, formatting,

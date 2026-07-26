@@ -1,0 +1,18 @@
+<AuthorizeView>
+    <Authorized>
+        <MudNavMenu Class="app-nav" Rounded="true">
+            <MudText Typo="Typo.overline" Class="app-nav__label">Overview</MudText>
+            <MudNavLink Href="/" Match="NavLinkMatch.All">
+                Dashboard
+            </MudNavLink>
+
+            <MudText Typo="Typo.overline" Class="app-nav__label mt-5">Catalog</MudText>
+            <MudNavLink Href="/languages" Match="NavLinkMatch.Prefix">
+                Languages
+            </MudNavLink>
+            <MudNavLink Href="/greetings" Match="NavLinkMatch.Prefix">
+                Greetings
+            </MudNavLink>
+        </MudNavMenu>
+    </Authorized>
+</AuthorizeView>
