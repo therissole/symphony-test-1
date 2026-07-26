@@ -11,7 +11,7 @@ operation owns its route, contract, validation, handler, SQL, mapping, and expec
 
 - ASP.NET Core Minimal APIs with typed results and generated OpenAPI
 - A responsive MudBlazor administration UI running as Blazor WebAssembly
-- Same-origin WASM hosting from the API for one deployable application
+- A same-origin gateway that proxies the Web development server and API independently
 - Dashboard and list/sort/filter/create/view/update/delete workflows for both capabilities
 - One request/use case per slice
 - Slice-local FluentValidation rules with explicit asynchronous handler invocation
@@ -23,7 +23,7 @@ operation owns its route, contract, validation, handler, SQL, mapping, and expec
 - Aspire service defaults for OpenTelemetry, health checks, resilience, and service discovery
 - Keycloak OIDC authentication with authorization code + PKCE in the WebAssembly client
 - JWT bearer validation and authenticated administration API boundaries
-- Aspire 13.4 AppHost orchestration for the API, Keycloak, PostgreSQL, and database migrations
+- Aspire 13.4 AppHost orchestration for the gateway, Web client, API, Keycloak, PostgreSQL, and database migrations
 - NUnit architecture, unit, integration, bUnit component, and Playwright browser tests
 - Real PostgreSQL tests through Testcontainers
 - Versioned, checksum-verified SQL migrations and a complete Docker Compose fallback
@@ -52,13 +52,14 @@ aspire run --isolated
 ```
 
 Aspire assigns resource endpoints for each run. The API receives that run's Keycloak authority
-from the AppHost, and the hosted WebAssembly client obtains the same non-secret authority at
-startup, so no Keycloak or application port is compiled into the Aspire path.
+from the AppHost, and the WebAssembly client obtains the same non-secret authority through the
+gateway at startup, so no Keycloak or application port is compiled into the Aspire path.
 
 ## Project structure
 
 ```text
 src/symphony-test-1.AppHost/       # Aspire application model and orchestration
+src/symphony-test-1.Gateway/       # same-origin UI/API boundary and production WASM host
 src/symphony-test-1.Api/
 ├── Features/
 │   ├── Languages/
@@ -148,9 +149,10 @@ aspire run
 
 The AppHost creates Keycloak with the committed local `symphony` realm and PostgreSQL, runs every
 unapplied `db/migrations/V*.sql` file, verifies
-checksums for migrations already applied, starts the API only after migration success, and starts
+checksums for migrations already applied, starts the API only after migration success, starts the
+Web development server and same-origin gateway, and starts
 the local Mintlify documentation preview. The Aspire dashboard shows links for the administration
-application and the documentation. The application executes in WebAssembly and calls its host's
+application and the documentation. The application executes in WebAssembly and calls the gateway's
 relative `/api` routes. Aspire allocates Keycloak and application endpoints per run; the API
 publishes the current non-secret OIDC authority and client ID to the browser through
 `/api/authentication/configuration`. In Mintlify, open **API Reference** to inspect contracts, status codes, and
@@ -158,28 +160,46 @@ send requests to the running API from the generated endpoint pages.
 
 ### Fast edit/verify loop
 
-For source changes, use Aspire's watcher. It keeps the application topology together while
-preserving the isolated, dynamically allocated endpoints for that development environment:
+For source changes, start the Aspire topology once. The AppHost runs the API and Web resources
+with their native non-interactive `dotnet watch` loops while preserving isolated, dynamically
+allocated endpoints:
 
 ```powershell
-aspire config set features.defaultWatchEnabled true
 aspire run
 ```
 
+If a Windows agent has not inherited the Aspire CLI PATH entry, use
+`& "$env:USERPROFILE\.aspire\bin\aspire.exe" run`.
+
 Leave that command running for the task. The dashboard and startup output identify the isolated
-**Symphony administration** endpoint for this run. Aspire watches the C# AppHost and its project
-resources. Do not manually tear down and recreate PostgreSQL, Keycloak, or migrations after an
-application or UI edit. If a change is not visible, rebuild only the API resource from the
-dashboard or with `aspire resource api rebuild`, then verify the result with the endpoint allocated
-for the current run:
+**Symphony administration** endpoint for this run. The `web` and `api` resources watch their own
+source independently; the gateway remains running. Do not manually tear down and recreate PostgreSQL,
+Keycloak, or migrations after an application or UI edit. If a native watcher cannot apply an edit,
+restart only that resource from the dashboard or CLI:
+
+```powershell
+aspire resource api stop
+aspire resource api start
+aspire resource web stop
+aspire resource web start
+```
+
+Then verify the result with the endpoint allocated for the current run:
 
 ```powershell
 Invoke-RestMethod <Symphony-administration-endpoint>/api/health
 ```
 
-The API serves the browser client at that same endpoint. Navigate there (or reload the page after
-an edit) to verify a UI slice against the same live API. When Aspire restarts or rebuilds a
+The gateway serves the browser client at that same endpoint. In development it proxies UI requests
+to the Web development server; published deployments serve the compiled WebAssembly assets from
+the gateway. Navigate there (or reload the page after an edit) to verify a UI slice against the
+same live API. When Aspire restarts or rebuilds a
 resource, wait for the health endpoint to respond before retrying a browser or API check.
+
+Repository-local `defaultWatchEnabled` is disabled deliberately. AppHost-wide watch is
+restart-based and re-creates the application topology; it is appropriate while editing
+`AppHost.cs`, not for the normal API/UI inner loop. Stop and rerun `aspire run` after an AppHost
+model change.
 
 `docker compose up --build --wait` remains the reproducible, headless fallback. It builds an image
 from a source snapshot, so it is not the edit/verify command and should not be rerun after routine
@@ -221,8 +241,13 @@ Docker must be running for integration and end-to-end tests.
 - **Limited shared infrastructure:** the Npgsql data source and application pipeline are genuine
   platform concerns.
 - **Intentional duplication:** a small repeated mapping is cheaper than coupling unrelated slices.
-- **Hosted WASM:** the browser client is independently compiled but served by the API, avoiding
-  CORS and runtime endpoint discovery while retaining client-side execution.
+- **Gateway-hosted WASM:** the browser client and API are independent Aspire resources. A small
+  YARP gateway preserves one browser origin, proxies the Web development server during local
+  development, and serves compiled WebAssembly assets in published deployments.
+- **Observable server boundary:** Aspire traces include gateway requests for pages, static assets,
+  and `/api` calls, correlated with downstream API spans. Component rendering and client-side
+  navigation execute in the browser and require separate browser OpenTelemetry instrumentation if
+  those semantic operations need their own spans.
 - **Defense in depth:** route authorization prevents anonymous navigation in the client, while
   the API independently validates issuer, audience, signature, and token lifetime. Client-side
   visibility is never treated as the security boundary.

@@ -51,6 +51,30 @@ public class WebArchitectureTests
         });
     }
 
+    [Test]
+    public void GatewayOwnsWebHosting_AndApiDoesNotReferenceWeb()
+    {
+        var apiProject = XDocument.Load(Path.Combine(
+            _solutionRoot,
+            "src",
+            "symphony-test-1.Api",
+            "symphony-test-1.Api.csproj"));
+        var gatewayProject = XDocument.Load(Path.Combine(
+            _solutionRoot,
+            "src",
+            "symphony-test-1.Gateway",
+            "symphony-test-1.Gateway.csproj"));
+
+        var apiReferences = ProjectReferences(apiProject);
+        var gatewayReferences = ProjectReferences(gatewayProject);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(apiReferences, Has.None.Contains("symphony-test-1.Web"));
+            Assert.That(gatewayReferences, Has.Some.Contains("symphony-test-1.Web"));
+        });
+    }
+
     [TestCase("Languages", "Language")]
     [TestCase("Greetings", "Greeting")]
     public void Capability_HasOneComponentPerCrudUseCase(string capability, string entity)
@@ -149,5 +173,14 @@ public class WebArchitectureTests
         }
 
         throw new InvalidOperationException("Could not find the solution root.");
+    }
+
+    private static List<string> ProjectReferences(XDocument project)
+    {
+        return project.Descendants("ProjectReference")
+            .Select(reference => (string?)reference.Attribute("Include"))
+            .Where(reference => reference is not null)
+            .Cast<string>()
+            .ToList();
     }
 }

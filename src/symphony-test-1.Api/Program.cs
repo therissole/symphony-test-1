@@ -47,8 +47,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -70,11 +68,6 @@ api.MapGroup("/languages")
 
 api.MapGroup("/greetings")
     .MapGreetingEndpoints();
-
-app.MapFallbackToFile(
-    app.Environment.IsEnvironment("Testing")
-        ? "index.Testing.html"
-        : "index.html");
 
 app.Run();
 

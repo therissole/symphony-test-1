@@ -47,8 +47,8 @@ an endpoint.
 - Unit-test nested request validators or deterministic domain rules directly.
 - Integration-test slice behavior through HTTP with Testcontainers PostgreSQL.
 - Reserve end-to-end tests for multi-slice workflows.
-- Use bUnit for fast component states and Playwright for browser workflows against the hosted WASM
-  app and Testcontainers PostgreSQL.
+- Use bUnit for fast component states and Playwright for browser workflows through the gateway
+  against the API and Testcontainers PostgreSQL.
 - Preserve the mechanical architecture tests that enforce client dependency direction and UI
   slice boundaries.
 - Test relevant success, validation, conflict, not-found, and constraint paths.

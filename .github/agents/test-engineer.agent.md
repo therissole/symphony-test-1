@@ -19,7 +19,8 @@ Read `AGENTS.md` and `docs/architecture.mdx` before changing tests.
 - Test every slice through HTTP in the integration project using the real Testcontainers
   PostgreSQL database.
 - Use end-to-end tests only for workflows that cross multiple slices.
-- Use bUnit for fast WASM component states and Playwright over Kestrel for browser workflows.
+- Use bUnit for fast WASM component states and Playwright through the gateway over Kestrel for
+  browser workflows.
 - Preserve mechanical checks for WASM dependency direction and UI slice boundaries.
 - Cover success plus relevant validation, not-found, conflict, filtering, constraint, and cascade
   behavior.

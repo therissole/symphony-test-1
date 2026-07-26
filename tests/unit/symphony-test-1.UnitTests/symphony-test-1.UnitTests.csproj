@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\symphony-test-1.Api\symphony-test-1.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\symphony-test-1.Web\symphony-test-1.Web.csproj" />
   </ItemGroup>
 
 </Project>
