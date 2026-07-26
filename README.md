@@ -156,6 +156,36 @@ publishes the current non-secret OIDC authority and client ID to the browser thr
 `/api/authentication/configuration`. In Mintlify, open **API Reference** to inspect contracts, status codes, and
 send requests to the running API from the generated endpoint pages.
 
+### Fast edit/verify loop
+
+For source changes, use Aspire's watcher. It keeps the application topology together while
+preserving the isolated, dynamically allocated endpoints for that development environment:
+
+```powershell
+aspire config set features.defaultWatchEnabled true
+aspire run
+```
+
+Leave that command running for the task. The dashboard and startup output identify the isolated
+**Symphony administration** endpoint for this run. Aspire watches the C# AppHost and its project
+resources. Do not manually tear down and recreate PostgreSQL, Keycloak, or migrations after an
+application or UI edit. If a change is not visible, rebuild only the API resource from the
+dashboard or with `aspire resource api rebuild`, then verify the result with the endpoint allocated
+for the current run:
+
+```powershell
+Invoke-RestMethod <Symphony-administration-endpoint>/api/health
+```
+
+The API serves the browser client at that same endpoint. Navigate there (or reload the page after
+an edit) to verify a UI slice against the same live API. When Aspire restarts or rebuilds a
+resource, wait for the health endpoint to respond before retrying a browser or API check.
+
+`docker compose up --build --wait` remains the reproducible, headless fallback. It builds an image
+from a source snapshot, so it is not the edit/verify command and should not be rerun after routine
+source changes. Stop the watcher with Ctrl+C when finished; do not use this fixed-port fallback as
+an isolated-development environment.
+
 Aspire PostgreSQL storage is intentionally environment-local and ephemeral so isolated runs can
 use randomized credentials safely. The Docker Compose fallback provides a named PostgreSQL volume
 when persistence across restarts is wanted.

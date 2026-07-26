@@ -70,6 +70,35 @@ The Development OpenAPI document is at `<api-endpoint>/openapi/v1.json`. Aspire 
 platform readiness and liveness endpoints at `/health` and `/alive`; the existing `/api/health`
 slice remains the database-aware public API contract.
 
+## Fast edit/verify loop
+
+Use this workflow when iterating on a slice. The AppHost preserves the isolated environment and
+its dynamically allocated endpoints while watching its C# project resources:
+
+```powershell
+aspire config set features.defaultWatchEnabled true
+aspire run
+```
+
+Keep the watcher open. The dashboard and startup output identify the isolated **Symphony
+administration** endpoint for that run. Do not manually tear down and recreate PostgreSQL,
+Keycloak, or migrations after an application or UI edit, so an agent can verify a change directly
+instead of rebuilding the stack. If a change is not visible, rebuild only the API resource from the
+dashboard or with `aspire resource api rebuild`:
+
+```powershell
+Invoke-RestMethod <Symphony-administration-endpoint>/api/health
+```
+
+Open or reload the same administration endpoint to test the hosted browser client against that
+same API. After Aspire restarts or rebuilds a resource, wait for the health request to succeed
+before navigating or reloading. Stop the watcher with Ctrl+C when done. This workflow does not
+hard-code ports, so it can run alongside other isolated development or test environments.
+
+The Compose command below is a headless image build for reproducible checks. It is not the
+hot-reload loop: `docker compose up --build` bakes the current source into the API image, so it
+needs a rebuild to observe a source edit.
+
 ## Run with Docker Compose
 
 Docker Compose remains available for a fixed-port, headless environment and uses the same
