@@ -74,18 +74,22 @@ public partial class Program
         }
         else if (string.IsNullOrWhiteSpace(webBaseUrl))
         {
-            app.UseBlazorFrameworkFiles("/web");
-            app.UseStaticFiles(new StaticFileOptions { RequestPath = "/web" });
-            app.MapReverseProxy();
-            app.MapGet("/", () => Results.Redirect("/web/"));
-            app.MapFallbackToFile("/web/{*path:nonfile}",
-                app.Environment.IsEnvironment("Testing")
-                    ? "index.Testing.html"
-                    : "index.html");
-            app.MapFallbackToFile(
-                app.Environment.IsEnvironment("Testing")
-                    ? "index.Testing.html"
-                    : "index.html");
+            if (app.Environment.IsEnvironment("Testing"))
+            {
+                app.UseBlazorFrameworkFiles();
+                app.UseStaticFiles();
+                app.MapReverseProxy();
+                app.MapFallbackToFile("index.Testing.html");
+            }
+            else
+            {
+                app.UseBlazorFrameworkFiles("/web");
+                app.UseStaticFiles(new StaticFileOptions { RequestPath = "/web" });
+                app.MapReverseProxy();
+                app.MapGet("/", () => Results.Redirect("/web/"));
+                app.MapFallbackToFile("/web/{*path:nonfile}", "index.html");
+                app.MapFallbackToFile("index.html");
+            }
         }
         else
         {
