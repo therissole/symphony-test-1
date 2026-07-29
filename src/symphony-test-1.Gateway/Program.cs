@@ -44,6 +44,7 @@ public partial class Program
         {
             app.MapReverseProxy();
 
+            string? defaultClientAppPath = null;
             foreach (var clientApp in clientApps.Values)
             {
                 if (clientApp.ConfigEndpointPath is null
@@ -70,6 +71,13 @@ public partial class Program
                             routeEndpoint.Order = int.MaxValue;
                         }
                     });
+
+                defaultClientAppPath ??= clientApp.PathPrefix;
+            }
+
+            if (defaultClientAppPath is not null)
+            {
+                app.MapGet("/", () => Results.Redirect(defaultClientAppPath));
             }
         }
         else if (string.IsNullOrWhiteSpace(webBaseUrl))
