@@ -37,6 +37,8 @@ packages/
 .nuget/
 project.lock.json
 project.fragment.lock.json
+# Aspire selects native dashboard packages per host OS, so its lock file is local-only.
+src/symphony-test-1.AppHost/packages.lock.json
 
 # Test results
 TestResult.xml

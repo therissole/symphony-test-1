@@ -12,8 +12,8 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using SymphonyTest1.ClientServiceDefaults;
 using SymphonyTest1.Web;
-using SymphonyTest1.Web.Infrastructure.Authentication;
 using SymphonyTest1.Web.Infrastructure;
+using SymphonyTest1.Web.Infrastructure.Authentication;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.Configuration.AddEnvironmentVariables();

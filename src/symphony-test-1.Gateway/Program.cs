@@ -1,5 +1,5 @@
-using Yarp.ReverseProxy.Configuration;
 using Yarp.ReverseProxy;
+using Yarp.ReverseProxy.Configuration;
 
 namespace SymphonyTest1.Gateway;
 
