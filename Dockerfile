@@ -9,6 +9,7 @@ COPY ["src/symphony-test-1.Gateway/symphony-test-1.Gateway.csproj", "src/symphon
 COPY ["src/symphony-test-1.Gateway/packages.lock.json", "src/symphony-test-1.Gateway/"]
 COPY ["src/symphony-test-1.ServiceDefaults/symphony-test-1.ServiceDefaults.csproj", "src/symphony-test-1.ServiceDefaults/"]
 COPY ["src/symphony-test-1.ServiceDefaults/packages.lock.json", "src/symphony-test-1.ServiceDefaults/"]
+COPY ["src/symphony-test-1.ClientServiceDefaults/", "src/symphony-test-1.ClientServiceDefaults/"]
 # Static Web Assets influence the SDK's implicit restore graph, so the locked
 # restore must see the Web project's source and wwwroot rather than only its project file.
 COPY ["src/symphony-test-1.Web/", "src/symphony-test-1.Web/"]
