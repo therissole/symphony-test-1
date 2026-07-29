@@ -33,12 +33,13 @@ if (builder.HostEnvironment.IsEnvironment("Testing"))
 else
 {
     var configuredApiEndpoint = builder.Configuration["services:api:https:0"]
-        ?? builder.Configuration["services:api:http:0"]
-        ?? throw new InvalidOperationException(
-            "Aspire did not supply an API endpoint for the browser client.");
-    var configuredApiBaseAddress = new Uri(
-        $"{configuredApiEndpoint.TrimEnd('/')}/",
-        UriKind.Absolute);
+        ?? builder.Configuration["services:api:http:0"];
+    var configuredApiBaseAddress = configuredApiEndpoint is null
+        ? new Uri(new Uri(builder.HostEnvironment.BaseAddress), "../")
+        : new Uri($"{configuredApiEndpoint.TrimEnd('/')}/", UriKind.Absolute);
+    var apiClientBaseAddress = configuredApiEndpoint is null
+        ? configuredApiBaseAddress
+        : ApiAuthorizationMessageHandler.ServiceAddress;
 
     using var bootstrapClient = new HttpClient
     {
@@ -64,12 +65,12 @@ else
         new ApiAuthorizationMessageHandler(
             serviceProvider.GetRequiredService<IAccessTokenProvider>(),
             serviceProvider.GetRequiredService<NavigationManager>())
-            .ConfigureForApi(builder.HostEnvironment.BaseAddress));
+            .ConfigureForApi(configuredApiBaseAddress, builder.HostEnvironment.BaseAddress));
     builder.Services.AddHttpClient(
             ApiAuthorizationMessageHandler.ClientName,
             client =>
             {
-                client.BaseAddress = ApiAuthorizationMessageHandler.ServiceAddress;
+                client.BaseAddress = apiClientBaseAddress;
             })
         .AddHttpMessageHandler<ApiAuthorizationMessageHandler>();
     builder.Services.AddScoped(serviceProvider =>

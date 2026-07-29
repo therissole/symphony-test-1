@@ -12,9 +12,9 @@ internal sealed class ApiAuthorizationMessageHandler(
 
     public static readonly Uri ServiceAddress = new("https+http://api");
 
-    public ApiAuthorizationMessageHandler ConfigureForApi(string browserBaseAddress)
+    public ApiAuthorizationMessageHandler ConfigureForApi(Uri apiBaseAddress, string browserBaseAddress)
     {
-        ConfigureHandler([ServiceAddress.AbsoluteUri, browserBaseAddress]);
+        ConfigureHandler([ServiceAddress.AbsoluteUri, apiBaseAddress.AbsoluteUri, browserBaseAddress]);
         return this;
     }
 }
