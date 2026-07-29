@@ -286,8 +286,10 @@ gateway-hosted WASM UI through every CRUD operation against a Testcontainers Pos
 Authentication boundary tests use a test-only scheme to prove both anonymous rejection and public
 health behavior without weakening production bearer validation.
 
-Acceptance specifications are a separate black-box layer. Each request-level feature directory
-owns its LightBDD acceptance tests, domain DSL, and API and/or browser protocol drivers; `Core/`
+Acceptance specifications are a separate black-box layer. Tests are grouped by capability under
+`tests/acceptance/.../Features/<Capability>/`: request-level LightBDD feature classes sit in its
+`AcceptanceTests/` folder, while its `Dsl/` folder owns capability domain language and its
+`ProtocolDrivers/` folder owns the capability's API and/or browser implementations. `Core/`
 contains only generic fixture, transport, and scenario mechanics. Fixtures run both protocols by
 default and opt out explicitly only for a channel-specific contract. The acceptance project has no
 production project references and owns only its external JSON representations. Scenario aliases

@@ -1,16 +1,18 @@
 using AcceptanceTests.Core;
 using AcceptanceTests.Environment;
+using AcceptanceTests.Features.Greetings.Dsl;
+using AcceptanceTests.Features.Greetings.ProtocolDrivers;
 using AcceptanceTests.TestData;
 using LightBDD.Framework.Scenarios;
 using LightBDD.NUnit3;
 
-namespace AcceptanceTests.Features.Greetings.ListGreetings;
+namespace AcceptanceTests.Features.Greetings.AcceptanceTests;
 
 [FeatureFixture]
 [Category("Acceptance")]
 [NonParallelizable]
-// This scenario changes the explicitly enabled test clock, which is an API-only contract.
 [AcceptanceProtocols(AcceptanceProtocol.Api)]
+/// <summary>Acceptance specification for listing greetings in a time range.</summary>
 public sealed class ListGreetingsAcceptanceTests : FeatureFixture
 {
     private static readonly DateTimeOffset Start = new(2026, 7, 26, 9, 0, 0, TimeSpan.Zero);
@@ -22,20 +24,16 @@ public sealed class ListGreetingsAcceptanceTests : FeatureFixture
     [SetUp]
     public void SetUp()
     {
-        var protocol = ProtocolTestCaseSource.Current;
-        Assert.That(protocol, Is.EqualTo(AcceptanceProtocol.Api));
+        Assert.That(ProtocolTestCaseSource.Current, Is.EqualTo(AcceptanceProtocol.Api));
         _scenario = new AcceptanceScenario(new ScenarioDataContext());
-        _driver = new ApiListGreetingsProtocolDriver(new ApiTransport(AcceptanceSetUp.Options!));
+        _driver = new GreetingsApiProtocolDriver(new ApiTransport(AcceptanceSetUp.Options!));
         _dsl = new ListGreetingsDsl(_scenario, _driver);
     }
 
     [TearDown]
-    public async Task TearDown()
-    {
-        await _scenario.DisposeAsync();
-        await _driver.DisposeAsync();
-    }
+    public async Task TearDown() { await _scenario.DisposeAsync(); await _driver.DisposeAsync(); }
 
+    /// <summary>Shows that a person sees greetings added during the time period they asked for.</summary>
     [Scenario]
     [TestCaseSource(nameof(Protocols))]
     public async Task A_list_can_be_filtered_by_when_greetings_were_introduced(AcceptanceProtocol _) => await Runner.RunScenarioAsync(
@@ -57,4 +55,32 @@ public sealed class ListGreetingsAcceptanceTests : FeatureFixture
         _dsl.RequestGreetingsIntroducedBetweenAsync(Start.AddHours(1), Start.AddHours(25).AddMicroseconds(1), CancellationToken.None);
     private Task Then_the_new_greeting_is_included() => _dsl.ShouldIncludeAsync("こんばんは");
     private Task Then_the_old_greeting_is_not_included() => _dsl.ShouldNotIncludeAsync("おはよう");
+
+    /// <summary>Shows that a person sees an empty list when no greetings were added during the time period they asked for.</summary>
+    [Scenario]
+    [TestCaseSource(nameof(Protocols))]
+    public async Task A_time_range_with_no_introduced_greetings_is_empty(AcceptanceProtocol _) => await Runner.RunScenarioAsync(
+        Given_business_time_is_the_start_of_the_scenario,
+        Given_Japanese_is_supported,
+        Given_a_greeting_is_introduced,
+        When_a_later_time_range_is_requested,
+        Then_the_list_is_empty);
+
+    /// <summary>Shows that a greeting added at the very start of a time period is included in the results.</summary>
+    [Scenario]
+    [TestCaseSource(nameof(Protocols))]
+    public async Task A_greeting_at_the_inclusive_start_of_a_time_range_is_included(AcceptanceProtocol _) => await Runner.RunScenarioAsync(
+        Given_business_time_is_the_start_of_the_scenario,
+        Given_Japanese_is_supported,
+        Given_a_greeting_is_introduced,
+        When_a_time_range_starting_at_its_introduction_is_requested,
+        Then_the_greeting_is_included);
+
+    private Task Given_a_greeting_is_introduced() => _dsl.IntroduceAsync("こんにちは", CancellationToken.None);
+    private Task When_a_later_time_range_is_requested() =>
+        _dsl.RequestGreetingsIntroducedBetweenAsync(Start.AddHours(1), Start.AddHours(2), CancellationToken.None);
+    private Task Then_the_list_is_empty() => _dsl.ShouldBeEmptyAsync();
+    private Task When_a_time_range_starting_at_its_introduction_is_requested() =>
+        _dsl.RequestGreetingsIntroducedBetweenAsync(Start, Start.AddMicroseconds(1), CancellationToken.None);
+    private Task Then_the_greeting_is_included() => _dsl.ShouldIncludeAsync("こんにちは");
 }

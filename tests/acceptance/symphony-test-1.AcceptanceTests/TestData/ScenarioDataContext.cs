@@ -16,10 +16,9 @@ internal sealed class ScenarioDataContext
     public string IsolationToken { get; }
     public int Seed { get; }
 
-    public string LanguageName(string alias) => Resolve(
-        $"language-name:{alias}",
-        // Logical aliases keep scenarios readable while physical values avoid cross-run collisions.
-        () => $"{alias} [{IsolationToken}]");
+    // Logical aliases keep scenarios readable while physical values avoid cross-run collisions.
+    public string LanguageName(string alias) =>
+        Resolve($"language-name:{alias}", () => $"{alias} [{IsolationToken}]");
 
     public string LanguageCode(string alias) => Resolve(
         $"language-code:{alias}",

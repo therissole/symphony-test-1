@@ -10,8 +10,27 @@ LightBDD acceptance test -> feature DSL -> feature protocol driver -> deployed s
 
 `Core/` contains only protocol-neutral mechanics: scenario lifecycle and cleanup, synthetic-data
 generation, the protocol-fixture matrix, and generic HTTP/browser transports. It contains no
-feature vocabulary. Each request slice owns its acceptance test, readable DSL, protocol-driver
-interface, and API and/or web implementations under `Features/<Capability>/<Request>/`.
+feature vocabulary. Acceptance tests are organised by feature group (capability), not by request
+folder:
+
+```text
+Features/
+└── Greetings/
+    ├── AcceptanceTests/
+    │   ├── CreateGreetingAcceptanceTests.cs
+    │   └── ListGreetingsAcceptanceTests.cs
+    ├── Dsl/
+    │   ├── GreetingsDsl.cs
+    │   └── GreetingsDslTests.cs
+    └── ProtocolDrivers/
+        ├── GreetingsApiProtocolDriver.cs
+        └── GreetingsWebProtocolDriver.cs
+```
+
+`Languages/` follows the same layout as it gains acceptance features. The capability's
+`AcceptanceTests/` folder contains scenario wording. The group DSL owns reusable domain language and test-only representations;
+the API and web drivers own that group's public protocol details. This keeps shared acceptance
+language out of individual request feature folders without making it a cross-capability layer.
 
 The DSL owns the business language; its protocol drivers translate it into that channel's public
 details. Thus the test contains no routes, JSON, selectors, database identifiers, or application

@@ -54,6 +54,10 @@ Use `.github/skills/build-vertical-slice/SKILL.md` for feature work.
   not exist.
 - Integration-test each slice through HTTP against the Testcontainers PostgreSQL database.
 - Use end-to-end tests for workflows spanning multiple slices.
+- Organize acceptance tests by capability under `tests/acceptance/.../Features/<Capability>/`:
+  keep request-level acceptance test classes under `AcceptanceTests/`, shared capability DSL and
+  test-only representations under `Dsl/`, and API/browser protocol drivers under
+  `ProtocolDrivers/`. Do not put DSLs or protocol drivers in request feature folders.
 - Use bUnit for component states and Playwright for browser workflows through the gateway.
 - Preserve the mechanical architecture tests that protect client dependency direction and slice
   boundaries.
