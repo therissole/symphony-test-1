@@ -38,8 +38,14 @@ an endpoint.
   contract's lower-camel-case error keys, and use Problem Details for global failures.
 - Catch specific PostgreSQL constraint errors only; never broadly catch and return `400`.
 - Use `NpgsqlDataSource`, parameterized Dapper `CommandDefinition`, and cancellation tokens.
+- Use `LanguageId` and `GreetingId` at API, handler, and persistence boundaries instead of raw
+  `Guid` identifiers; their converters preserve UUID strings on the wire.
 - Project queries directly to slice responses and use `RETURNING` for atomic command responses.
 - Prefer deliberate local duplication to cross-slice coupling.
+
+`dotnet build` is the enforcement boundary. Do not suppress or bypass `SYM001`-`SYM007`, built-in
+security diagnostics, `.editorconfig`, or `BannedSymbols.txt`; add a deterministic analyzer or
+architecture/contract test when a new convention must become mandatory.
 
 ## Testing
 
@@ -53,8 +59,9 @@ an endpoint.
   slice boundaries.
 - Test relevant success, validation, conflict, not-found, and constraint paths.
 
-Before completion, run a warning-free solution build, all tests with Docker available, formatting,
-and `dotnet list ... package --vulnerable --include-transitive`.
+Before completion, use locked restore, run a warning-free solution build, lint the generated
+OpenAPI document, run all tests with Docker available, verify formatting, and run
+`dotnet list ... package --vulnerable --include-transitive --no-restore`.
 
 ## Documentation
 

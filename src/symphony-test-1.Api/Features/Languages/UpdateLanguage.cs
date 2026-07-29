@@ -1,14 +1,20 @@
 using System.ComponentModel;
+
 using Dapper;
+
 using FluentValidation;
+
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+
 using Npgsql;
+
+using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Languages;
 
-public static class UpdateLanguage
+public static partial class UpdateLanguage
 {
     /// <summary>Values required to update a language.</summary>
     /// <param name="Name">The human-readable language name. Maximum length is 100 characters.</param>
@@ -44,7 +50,7 @@ public static class UpdateLanguage
     /// <param name="CreatedAt">The UTC time when the language was created.</param>
     /// <param name="UpdatedAt">The UTC time when the language was last updated.</param>
     public sealed record Response(
-        Guid Id,
+        LanguageId Id,
         string Name,
         string Code,
         DateTimeOffset CreatedAt,
@@ -64,7 +70,7 @@ public static class UpdateLanguage
     }
 
     private static async Task<Results<Ok<Response>, ValidationProblem, Conflict<ProblemDetails>, NotFound>> Handle(
-        [Description("The unique language identifier.")] Guid id,
+        [Description("The unique language identifier.")] LanguageId id,
         Request request,
         IValidator<Request> validator,
         NpgsqlDataSource dataSource,
@@ -110,7 +116,7 @@ public static class UpdateLanguage
 
             var language = ToResponse(databaseLanguage);
 
-            logger.LogInformation("Updated language {LanguageId}", id);
+            LogLanguageUpdated(logger, id);
             return TypedResults.Ok(language);
         }
         catch (PostgresException exception)
@@ -125,8 +131,14 @@ public static class UpdateLanguage
         }
     }
 
-    private sealed record DatabaseResponse(Guid Id, string Name, string Code, DateTime CreatedAt, DateTime UpdatedAt);
+    private sealed record DatabaseResponse(LanguageId Id, string Name, string Code, DateTime CreatedAt, DateTime UpdatedAt);
 
     private static Response ToResponse(DatabaseResponse value) =>
         new(value.Id, value.Name, value.Code, UtcInstant.FromDatabase(value.CreatedAt), UtcInstant.FromDatabase(value.UpdatedAt));
+
+    [LoggerMessage(
+        EventId = 1002,
+        Level = LogLevel.Information,
+        Message = "Updated language {LanguageId}")]
+    private static partial void LogLanguageUpdated(ILogger logger, LanguageId languageId);
 }

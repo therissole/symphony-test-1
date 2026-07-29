@@ -23,9 +23,10 @@ For each use case:
    in validation errors, then inject `NpgsqlDataSource` directly and carry the request cancellation
    token through all I/O.
 4. Query directly into the response and use `RETURNING` for command responses.
-5. Register the slice in the capability's feature registration file.
-6. Add or update focused unit and HTTP integration tests.
-7. Update relevant documentation.
+5. Use `LanguageId` and `GreetingId`, not raw `Guid`, at API and persistence boundaries.
+6. Register the slice in the capability's feature registration file.
+7. Add or update focused unit and HTTP integration tests.
+8. Update relevant documentation.
 
 For a UI use case, keep its `HttpClient` operation, local contracts, state, validation feedback,
 and expected errors in one Razor component under `symphony-test-1.Web/Features`. Do not reference
@@ -36,5 +37,5 @@ Do not introduce resource-wide repositories, service layers, persistence entitie
 MediatR without a demonstrated requirement. Do not catch unexpected exceptions in a slice or leak
 implementation details to clients.
 
-Finish by formatting, building with zero warnings, running all Docker-backed tests, and auditing
-vulnerable packages.
+Finish with locked restore, formatting, a zero-warning build, generated OpenAPI linting, all
+Docker-backed tests, and the vulnerable-package audit.

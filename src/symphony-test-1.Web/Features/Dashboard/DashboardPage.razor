@@ -26,7 +26,7 @@ else
                 </div>
                 <MudText Typo="Typo.overline" Color="Color.Secondary">Languages</MudText>
                 <MudText Typo="Typo.h4" data-testid="language-count">@_languages.Count</MudText>
-                <MudLink Href="/languages" Typo="Typo.body2">Manage languages</MudLink>
+                <MudLink Href="languages" Typo="Typo.body2">Manage languages</MudLink>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6" lg="3">
@@ -36,7 +36,7 @@ else
                 </div>
                 <MudText Typo="Typo.overline" Color="Color.Secondary">Greetings</MudText>
                 <MudText Typo="Typo.h4" data-testid="greeting-count">@_greetings.Count</MudText>
-                <MudLink Href="/greetings" Typo="Typo.body2">Manage greetings</MudLink>
+                <MudLink Href="greetings" Typo="Typo.body2">Manage greetings</MudLink>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6" lg="3">
@@ -69,7 +69,7 @@ else
                             The latest catalog activity.
                         </MudText>
                     </div>
-                    <MudButton Href="/greetings" Variant="Variant.Text" Color="Color.Primary"
+                    <MudButton Href="greetings" Variant="Variant.Text" Color="Color.Primary"
                                EndIcon="@Icons.Material.Filled.ArrowForward">
                         View all
                     </MudButton>
@@ -117,15 +117,15 @@ else
                     </div>
                 </div>
                 <MudList T="string" Class="quick-actions">
-                    <MudListItem Href="/languages?action=create"
+                    <MudListItem Href="languages?action=create"
                                  Icon="@Icons.Material.Outlined.AddCircle">
                         Add a language
                     </MudListItem>
-                    <MudListItem Href="/greetings?action=create"
+                    <MudListItem Href="greetings?action=create"
                                  Icon="@Icons.Material.Outlined.AddComment">
                         Add a greeting
                     </MudListItem>
-                    <MudListItem Href="/languages"
+                    <MudListItem Href="languages"
                                  Icon="@Icons.Material.Outlined.ManageSearch">
                         Review language catalog
                     </MudListItem>

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SymphonyTest1.Api.Features.Greetings;
 using SymphonyTest1.Api.Features.Languages;
+using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.IntegrationTests.Infrastructure;
 
 namespace SymphonyTest1.IntegrationTests.Features.Greetings;
@@ -139,7 +140,10 @@ public class GreetingSliceTests
     [Test]
     public async Task CreateGreeting_WithMissingLanguage_ReturnsValidationProblem()
     {
-        var request = new CreateGreeting.Request(Guid.NewGuid(), "Hello", false);
+        var request = new CreateGreeting.Request(
+            new LanguageId(Guid.NewGuid()),
+            "Hello",
+            false);
 
         var response = await _client.PostAsJsonAsync("/api/greetings", request);
 
@@ -151,7 +155,7 @@ public class GreetingSliceTests
     [Test]
     public async Task CreateGreeting_WithInvalidRequest_ReturnsValidationProblem()
     {
-        var request = new CreateGreeting.Request(Guid.Empty, "", false);
+        var request = new CreateGreeting.Request(default, "", false);
 
         var response = await _client.PostAsJsonAsync("/api/greetings", request);
 
@@ -191,7 +195,9 @@ public class GreetingSliceTests
         return (await response.Content.ReadFromJsonAsync<CreateLanguage.Response>())!;
     }
 
-    private async Task<CreateGreeting.Response> CreateGreetingAsync(Guid languageId, string text)
+    private async Task<CreateGreeting.Response> CreateGreetingAsync(
+        LanguageId languageId,
+        string text)
     {
         var response = await _client.PostAsJsonAsync(
             "/api/greetings",

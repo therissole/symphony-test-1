@@ -86,10 +86,12 @@ foreach (var migrationPath in migrationPaths)
         await connection.BeginTransactionAsync(cancellationToken);
 
     var migrationSql = System.Text.Encoding.UTF8.GetString(migrationBytes);
+#pragma warning disable CA2100 // Migration SQL is trusted, versioned repository content.
     await using (var migrationCommand = new NpgsqlCommand(
         migrationSql,
         connection,
         transaction))
+#pragma warning restore CA2100
     {
         await migrationCommand.ExecuteNonQueryAsync(cancellationToken);
     }

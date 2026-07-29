@@ -3,7 +3,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var keycloak = builder
     .AddKeycloak("keycloak")
     .WithRealmImport("./Realms")
-    .WithBindMount("./Themes", "/opt/keycloak/themes", isReadOnly: true);
+    .WithDockerfile(".");
 
 var postgres = builder.AddPostgres("postgres")
     .WithImageTag("18-alpine");
@@ -18,19 +18,8 @@ var migrations = builder
     .WaitFor(database);
 
 var api = builder
-    .AddExecutable(
-        "api",
-        "dotnet",
-        "../symphony-test-1.Api",
-        "watch",
-        "--non-interactive",
-        "--project",
-        "symphony-test-1.Api.csproj",
-        "--no-launch-profile")
-    .WithHttpEndpoint(name: "http", env: "ASPNETCORE_HTTP_PORTS")
+    .AddProject<Projects.symphony_test_1_Api>("api")
     .WithOtlpExporter()
-    .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
-    .WithEnvironment("DOTNET_WATCH_RESTART_ON_RUDE_EDIT", "1")
     .WithReference(database)
     .WithReference(keycloak)
     .WithEnvironment(
@@ -45,32 +34,18 @@ var api = builder
 api.WithUrlForEndpoint("http", url => url.DisplayText = "Symphony API");
 
 var web = builder
-    .AddExecutable(
-        "web",
-        "dotnet",
-        "../symphony-test-1.Web",
-        "watch",
-        "--non-interactive",
-        "--project",
-        "symphony-test-1.Web.csproj",
-        "--no-launch-profile")
-    .WithHttpEndpoint(name: "http", env: "ASPNETCORE_HTTP_PORTS")
-    .WithOtlpExporter()
-    .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
-    .WithEnvironment("DOTNET_WATCH_RESTART_ON_RUDE_EDIT", "1")
-    .ExcludeFromManifest();
-
-web.WithUrlForEndpoint("http", url => url.DisplayText = "Web development server");
+    .AddBlazorWasmProject<Projects.symphony_test_1_Web>("web")
+    .WithReference(api.GetEndpoint("https"));
 
 var gateway = builder
     .AddProject<Projects.symphony_test_1_Gateway>("gateway")
     .WithHttpEndpoint(name: "http")
     .WithHttpsEndpoint(name: "https")
-    .WithEnvironment("Gateway__ApiBaseUrl", api.GetEndpoint("http"))
-    .WithEnvironment("Gateway__WebBaseUrl", web.GetEndpoint("http"))
     .WaitFor(api)
-    .WaitFor(web)
+    .WithOtlpExporter(OtlpProtocol.HttpProtobuf)
     .WithHttpHealthCheck("/health");
+
+gateway.WithBlazorClientApp(web, proxyTelemetry: true);
 
 gateway.WithUrlForEndpoint("https", url => url.DisplayText = "Symphony administration")
     .WithUrlForEndpoint("http", url => url.DisplayText = "Symphony administration");
@@ -78,7 +53,7 @@ gateway.WithUrlForEndpoint("https", url => url.DisplayText = "Symphony administr
 builder
     .AddJavaScriptApp("docs", "../../docs")
     .WithRunScript("dev")
-    .WithEnvironment("API_BASE_URL", api.GetEndpoint("http"))
+    .WithEnvironment("API_BASE_URL", api.GetEndpoint("https"))
     .WaitFor(api)
     .WithHttpEndpoint(name: "http", env: "PORT")
     .WithUrlForEndpoint("http", url =>

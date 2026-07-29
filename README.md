@@ -25,6 +25,10 @@ operation owns its route, contract, validation, handler, SQL, mapping, and expec
 - JWT bearer validation and authenticated administration API boundaries
 - Aspire 13.4 AppHost orchestration for the gateway, Web client, API, Keycloak, PostgreSQL, and database migrations
 - NUnit architecture, unit, integration, bUnit component, and Playwright browser tests
+- Build-enforced .NET, security, banned-API, and repository-specific Roslyn analyzers
+- Strong `LanguageId` and `GreetingId` types with unchanged UUID JSON and OpenAPI contracts
+- Build-time OpenAPI 3.1 generation and deterministic contract linting
+- Exact SDK selection, locked NuGet dependency graphs, NuGet audit, and CodeQL security analysis
 - Request-slice LightBDD acceptance tests using API and browser protocol drivers by default
 - Scenario-isolated synthetic data and deterministic business time through `TimeProvider`
 - Real PostgreSQL tests through Testcontainers
@@ -105,6 +109,10 @@ tests/
 ├── agents/        # project-specific Copilot agents
 ├── skills/        # reusable VSA implementation workflow
 └── workflows/     # build, test, audit, and container verification
+
+tools/
+├── SymphonyTest1.Analyzers/      # compile-time vertical-slice rules
+└── lint-openapi.ps1              # generated API-contract policy
 ```
 
 `Languages` and `Greetings` are capabilities. `CreateLanguage`, `GetGreetingByLanguage`, and the
@@ -224,14 +232,20 @@ docker compose down -v
 Run the quality checks:
 
 ```bash
-dotnet format symphony-test-1.slnx --verify-no-changes
-dotnet build symphony-test-1.slnx --configuration Release
+dotnet restore symphony-test-1.slnx --locked-mode
+dotnet build symphony-test-1.slnx --configuration Release --no-restore
+pwsh tools/lint-openapi.ps1 src/symphony-test-1.Api/obj/openapi/symphony-test-1.json
+dotnet format symphony-test-1.slnx style --verify-no-changes --no-restore
 pwsh tests/e2e/symphony-test-1.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium
-dotnet test symphony-test-1.slnx --configuration Release --no-build
-dotnet list symphony-test-1.slnx package --vulnerable --include-transitive
+dotnet test symphony-test-1.slnx --configuration Release --no-build --no-restore
+dotnet list symphony-test-1.slnx package --vulnerable --include-transitive --no-restore
 ```
 
 Docker must be running for integration and end-to-end tests.
+
+See [deterministic quality enforcement](docs/quality-enforcement.mdx) for the rule catalogue and
+the boundary between compiler diagnostics, architecture tests, API-contract checks, and CI
+security analysis.
 
 Run black-box API and browser acceptance specifications against a disposable Compose deployment:
 
@@ -255,13 +269,13 @@ tests can run against another implementation of the public API.
 - **Limited shared infrastructure:** the Npgsql data source and application pipeline are genuine
   platform concerns.
 - **Intentional duplication:** a small repeated mapping is cheaper than coupling unrelated slices.
-- **Gateway-hosted WASM:** the browser client and API are independent Aspire resources. A small
-  YARP gateway preserves one browser origin, proxies the Web development server during local
-  development, and serves compiled WebAssembly assets in published deployments.
-- **Observable server boundary:** Aspire traces include gateway requests for pages, static assets,
-  and `/api` calls, correlated with downstream API spans. Component rendering and client-side
-  navigation execute in the browser and require separate browser OpenTelemetry instrumentation if
-  those semantic operations need their own spans.
+- **Gateway-hosted WASM:** Aspire's Blazor hosting integration serves the browser client from the
+  gateway and preserves one browser origin for API and telemetry routes.
+- **Observable browser boundary:** the WebAssembly client exports OpenTelemetry through the
+  gateway's same-origin `/_otlp` route, so browser HTTP, gateway, API, and PostgreSQL spans share
+  trace context without exposing dashboard credentials. A browser-safe Razor class library owns
+  the Aspire runtime-config initializer and client telemetry defaults; API calls use Aspire service
+  discovery through `IHttpClientFactory`, matching Microsoft's standalone Blazor reference setup.
 - **Defense in depth:** route authorization prevents anonymous navigation in the client, while
   the API independently validates issuer, audience, signature, and token lifetime. Client-side
   visibility is never treated as the security boundary.

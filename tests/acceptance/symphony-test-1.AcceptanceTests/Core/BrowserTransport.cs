@@ -3,6 +3,9 @@ using Microsoft.Playwright;
 
 namespace AcceptanceTests.Core;
 
+/// <summary>
+/// Owns one authenticated browser session for a scenario, leaving feature navigation and selectors to feature drivers.
+/// </summary>
 internal sealed class BrowserTransport(AcceptanceOptions options) : IAsyncDisposable
 {
     private IPlaywright? _playwright;
@@ -11,6 +14,7 @@ internal sealed class BrowserTransport(AcceptanceOptions options) : IAsyncDispos
 
     public async Task<IPage> PageAsync()
     {
+        // Reusing the page preserves the authenticated session across the scenario's feature steps.
         if (_page is not null) return _page;
         if (string.IsNullOrWhiteSpace(options.BrowserUserName) || string.IsNullOrWhiteSpace(options.BrowserPassword))
             throw new InvalidOperationException("Browser acceptance tests require browser credentials.");
@@ -18,6 +22,7 @@ internal sealed class BrowserTransport(AcceptanceOptions options) : IAsyncDispos
         _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
         _page = await _browser.NewPageAsync();
         var returnUrl = Uri.EscapeDataString(options.BaseUri.ToString());
+        // Authenticate through the deployed OIDC flow; browser acceptance tests do not inject a token.
         await _page.GotoAsync(new Uri(options.BaseUri, $"authentication/login?returnUrl={returnUrl}").ToString());
         await _page.Locator("#username").FillAsync(options.BrowserUserName);
         await _page.Locator("#password").FillAsync(options.BrowserPassword);

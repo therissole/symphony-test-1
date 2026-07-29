@@ -1,7 +1,12 @@
 using System.ComponentModel;
+
 using Dapper;
+
 using Microsoft.AspNetCore.Http.HttpResults;
+
 using Npgsql;
+
+using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Greetings;
@@ -16,8 +21,8 @@ public static class GetGreeting
     /// <param name="CreatedAt">The UTC time when the greeting was created.</param>
     /// <param name="UpdatedAt">The UTC time when the greeting was last updated.</param>
     public sealed record Response(
-        Guid Id,
-        Guid LanguageId,
+        GreetingId Id,
+        LanguageId LanguageId,
         string GreetingText,
         bool Formal,
         DateTimeOffset CreatedAt,
@@ -35,7 +40,7 @@ public static class GetGreeting
     }
 
     private static async Task<Results<Ok<Response>, NotFound>> Handle(
-        [Description("The unique greeting identifier.")] Guid id,
+        [Description("The unique greeting identifier.")] GreetingId id,
         NpgsqlDataSource dataSource,
         CancellationToken cancellationToken)
     {
@@ -61,8 +66,8 @@ public static class GetGreeting
     }
 
     private sealed record DatabaseResponse(
-        Guid Id,
-        Guid LanguageId,
+        GreetingId Id,
+        LanguageId LanguageId,
         string GreetingText,
         bool Formal,
         DateTime CreatedAt,

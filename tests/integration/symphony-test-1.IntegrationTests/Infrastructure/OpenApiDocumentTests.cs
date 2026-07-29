@@ -114,6 +114,48 @@ public class OpenApiDocumentTests
                 .Where(property => !HasNonEmptyString(property.Value, "description"))
                 .Select(property => $"{schema.Name}.{property.Name}"))
             .ToList();
+        var identifierParametersWithoutUuidFormat = operations
+            .Where(operation => operation.Value.TryGetProperty("parameters", out _))
+            .SelectMany(operation => operation.Value.GetProperty("parameters")
+                .EnumerateArray()
+                .Where(parameter =>
+                    parameter.GetProperty("name").GetString() is "id" or "languageId")
+                .Where(parameter =>
+                    !HasStringValue(parameter.GetProperty("schema"), "type", "string")
+                    || !HasStringValue(parameter.GetProperty("schema"), "format", "uuid"))
+                .Select(parameter =>
+                    $"{operation.Name}: {parameter.GetProperty("name").GetString()}"))
+            .ToList();
+        var queryParametersWithoutLowerCamelCase = operations
+            .Where(operation => operation.Value.TryGetProperty("parameters", out _))
+            .SelectMany(operation => operation.Value.GetProperty("parameters")
+                .EnumerateArray()
+                .Where(parameter =>
+                    HasStringValue(parameter, "in", "query")
+                    && parameter.GetProperty("name").GetString() is { Length: > 0 } name
+                    && char.IsUpper(name[0]))
+                .Select(parameter =>
+                    $"{operation.Name}: {parameter.GetProperty("name").GetString()}"))
+            .ToList();
+        var identifierPropertiesWithoutTypedSchema = sliceSchemas
+            .Where(schema => schema.Value.TryGetProperty("properties", out _))
+            .SelectMany(schema => schema.Value.GetProperty("properties")
+                .EnumerateObject()
+                .Where(property => property.Name is "id" or "languageId")
+                .Where(property =>
+                {
+                    var expectedSchema = property.Name == "id"
+                        && schema.Name.Contains("Greeting", StringComparison.Ordinal)
+                            ? "GreetingId"
+                            : "LanguageId";
+
+                    return !HasStringValue(
+                        property.Value,
+                        "$ref",
+                        $"#/components/schemas/{expectedSchema}");
+                })
+                .Select(property => $"{schema.Name}.{property.Name}"))
+            .ToList();
 
         Assert.Multiple(() =>
         {
@@ -138,7 +180,19 @@ public class OpenApiDocumentTests
             Assert.That(
                 schemas.TryGetProperty("GetAuthenticationConfigurationResponse", out _),
                 Is.True);
+            AssertUuidSchema(schemas, "LanguageId");
+            AssertUuidSchema(schemas, "GreetingId");
+            Assert.That(identifierParametersWithoutUuidFormat, Is.Empty);
+            Assert.That(queryParametersWithoutLowerCamelCase, Is.Empty);
+            Assert.That(identifierPropertiesWithoutTypedSchema, Is.Empty);
         });
+    }
+
+    private static void AssertUuidSchema(JsonElement schemas, string schemaName)
+    {
+        Assert.That(schemas.TryGetProperty(schemaName, out var schema), Is.True);
+        Assert.That(HasStringValue(schema, "type", "string"), Is.True);
+        Assert.That(HasStringValue(schema, "format", "uuid"), Is.True);
     }
 
     private static bool HasNonEmptyString(JsonElement element, string propertyName)
@@ -146,5 +200,15 @@ public class OpenApiDocumentTests
         return element.TryGetProperty(propertyName, out var property)
             && property.ValueKind == JsonValueKind.String
             && !string.IsNullOrWhiteSpace(property.GetString());
+    }
+
+    private static bool HasStringValue(
+        JsonElement element,
+        string propertyName,
+        string expected)
+    {
+        return element.TryGetProperty(propertyName, out var property)
+            && property.ValueKind == JsonValueKind.String
+            && property.GetString() == expected;
     }
 }

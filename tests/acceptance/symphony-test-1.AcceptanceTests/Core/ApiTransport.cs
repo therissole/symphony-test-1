@@ -7,6 +7,9 @@ using AcceptanceTests.Environment;
 
 namespace AcceptanceTests.Core;
 
+/// <summary>
+/// Provides the protocol-neutral HTTP mechanics used by feature API drivers; feature routes and payloads stay outside Core.
+/// </summary>
 internal sealed class ApiTransport(AcceptanceOptions options) : IAsyncDisposable
 {
     public static JsonSerializerOptions Json { get; } = new(JsonSerializerDefaults.Web);
@@ -27,6 +30,7 @@ internal sealed class ApiTransport(AcceptanceOptions options) : IAsyncDisposable
 
     private async Task<string> TokenAsync(CancellationToken ct)
     {
+        // A scenario reuses one token so its feature driver does not repeatedly call the identity provider.
         if (!string.IsNullOrWhiteSpace(_token)) return _token;
         if (options.TokenEndpoint is null || string.IsNullOrWhiteSpace(options.ClientId) || string.IsNullOrWhiteSpace(options.ClientSecret))
             throw new InvalidOperationException("Configure acceptance token credentials.");
@@ -41,6 +45,7 @@ internal sealed class ApiTransport(AcceptanceOptions options) : IAsyncDisposable
     private static async Task EnsureAsync(HttpResponseMessage response, HttpStatusCode expected, CancellationToken ct)
     {
         if (response.StatusCode == expected) return;
+        // Preserve the public response body in the failure: it is the useful diagnostic at this black-box boundary.
         throw new AssertionException($"Expected HTTP {(int)expected} but received {(int)response.StatusCode}. {await response.Content.ReadAsStringAsync(ct)}");
     }
 

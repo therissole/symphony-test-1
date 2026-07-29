@@ -42,13 +42,16 @@ try {
     $env:ACCEPTANCE_BROWSER_USERNAME = 'acceptance-browser'
     $env:ACCEPTANCE_BROWSER_PASSWORD = 'Acceptance!12345'
 
-    & dotnet build $acceptanceProject --configuration Release
+    & dotnet restore $acceptanceProject --locked-mode
+    if ($LASTEXITCODE -ne 0) { throw 'The acceptance project did not restore from its lock file.' }
+
+    & dotnet build $acceptanceProject --configuration Release --no-restore
     if ($LASTEXITCODE -ne 0) { throw 'The acceptance project did not build.' }
 
     & (Join-Path (Split-Path $acceptanceProject) 'bin\Release\net10.0\playwright.ps1') install chromium
     if ($LASTEXITCODE -ne 0) { throw 'Chromium installation failed.' }
 
-    & dotnet test $acceptanceProject --configuration Release --no-build --filter 'TestCategory=Acceptance'
+    & dotnet test $acceptanceProject --configuration Release --no-build --no-restore --filter 'TestCategory=Acceptance'
     if ($LASTEXITCODE -ne 0) { throw 'Acceptance tests failed.' }
 }
 finally {

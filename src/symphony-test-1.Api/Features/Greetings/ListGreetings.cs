@@ -1,7 +1,12 @@
 using Dapper;
+
 using FluentValidation;
+
 using Microsoft.AspNetCore.Http.HttpResults;
+
 using Npgsql;
+
+using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Greetings;
@@ -14,7 +19,7 @@ public static class ListGreetings
     /// <param name="CreatedFrom">Inclusive RFC 3339 lower bound for the creation instant.</param>
     /// <param name="CreatedTo">Exclusive RFC 3339 upper bound for the creation instant.</param>
     public sealed record Request(
-        Guid? LanguageId,
+        LanguageId? LanguageId,
         bool? Formal,
         DateTimeOffset? CreatedFrom,
         DateTimeOffset? CreatedTo);
@@ -39,8 +44,8 @@ public static class ListGreetings
     /// <param name="CreatedAt">The UTC time when the greeting was created.</param>
     /// <param name="UpdatedAt">The UTC time when the greeting was last updated.</param>
     public sealed record Response(
-        Guid Id,
-        Guid LanguageId,
+        GreetingId Id,
+        LanguageId LanguageId,
         string GreetingText,
         bool Formal,
         DateTimeOffset CreatedAt,
@@ -79,7 +84,7 @@ public static class ListGreetings
                 updated_at AS UpdatedAt
             FROM greetings
             WHERE
-                (@LanguageId IS NULL OR language_id = @LanguageId)
+                (@HasLanguageId = FALSE OR language_id = @LanguageId)
                 AND (@Formal IS NULL OR formal = @Formal)
                 AND (CAST(@CreatedFrom AS TIMESTAMPTZ) IS NULL OR created_at >= CAST(@CreatedFrom AS TIMESTAMPTZ))
                 AND (CAST(@CreatedTo AS TIMESTAMPTZ) IS NULL OR created_at < CAST(@CreatedTo AS TIMESTAMPTZ))
@@ -91,7 +96,8 @@ public static class ListGreetings
             sql,
             new
             {
-                request.LanguageId,
+                HasLanguageId = request.LanguageId.HasValue,
+                LanguageId = request.LanguageId.GetValueOrDefault(),
                 request.Formal,
                 request.CreatedFrom,
                 request.CreatedTo
@@ -105,8 +111,8 @@ public static class ListGreetings
     }
 
     private sealed record DatabaseResponse(
-        Guid Id,
-        Guid LanguageId,
+        GreetingId Id,
+        LanguageId LanguageId,
         string GreetingText,
         bool Formal,
         DateTime CreatedAt,

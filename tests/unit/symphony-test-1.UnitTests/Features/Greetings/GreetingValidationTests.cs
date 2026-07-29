@@ -1,5 +1,6 @@
 using FluentValidation;
 using SymphonyTest1.Api.Features.Greetings;
+using SymphonyTest1.Api.Infrastructure.Identifiers;
 
 namespace SymphonyTest1.UnitTests.Features.Greetings;
 
@@ -10,7 +11,7 @@ public class GreetingValidationTests
     public void CreateGreeting_WithEmptyLanguageId_ReturnsValidationError()
     {
         var validator = new CreateGreeting.RequestValidator();
-        var result = validator.Validate(new CreateGreeting.Request(Guid.Empty, "Hello", false));
+        var result = validator.Validate(new CreateGreeting.Request(default, "Hello", false));
 
         Assert.That(result.ToDictionary(), Does.ContainKey("languageId"));
     }
@@ -19,7 +20,8 @@ public class GreetingValidationTests
     public void UpdateGreeting_WithEmptyText_ReturnsValidationError()
     {
         var validator = new UpdateGreeting.RequestValidator();
-        var result = validator.Validate(new UpdateGreeting.Request(Guid.NewGuid(), "", false));
+        var result = validator.Validate(
+            new UpdateGreeting.Request(new LanguageId(Guid.NewGuid()), "", false));
 
         Assert.That(result.ToDictionary(), Does.ContainKey("greetingText"));
     }

@@ -1,0 +1,13 @@
+# Application time must come from an injected TimeProvider.
+P:System.DateTime.Now;Use TimeProvider.GetLocalNow().
+P:System.DateTime.UtcNow;Use TimeProvider.GetUtcNow().
+P:System.DateTime.Today;Use TimeProvider.GetLocalNow().Date.
+P:System.DateTimeOffset.Now;Use TimeProvider.GetLocalNow().
+P:System.DateTimeOffset.UtcNow;Use TimeProvider.GetUtcNow().
+
+# Blocking waits make request handling and tests nondeterministic.
+M:System.Threading.Thread.Sleep(System.Int32);Use an asynchronous, cancellation-aware delay.
+M:System.Threading.Thread.Sleep(System.TimeSpan);Use an asynchronous, cancellation-aware delay.
+
+# System.Text.Json is the repository JSON stack.
+N:Newtonsoft.Json;Use System.Text.Json.

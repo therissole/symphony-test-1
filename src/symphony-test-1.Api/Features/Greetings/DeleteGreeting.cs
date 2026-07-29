@@ -1,11 +1,16 @@
 using System.ComponentModel;
+
 using Dapper;
+
 using Microsoft.AspNetCore.Http.HttpResults;
+
 using Npgsql;
+
+using SymphonyTest1.Api.Infrastructure.Identifiers;
 
 namespace SymphonyTest1.Api.Features.Greetings;
 
-public static class DeleteGreeting
+public static partial class DeleteGreeting
 {
     public static void Map(RouteGroupBuilder group)
     {
@@ -19,7 +24,7 @@ public static class DeleteGreeting
     }
 
     private static async Task<Results<NoContent, NotFound>> Handle(
-        [Description("The unique greeting identifier.")] Guid id,
+        [Description("The unique greeting identifier.")] GreetingId id,
         NpgsqlDataSource dataSource,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
@@ -36,7 +41,13 @@ public static class DeleteGreeting
             return TypedResults.NotFound();
         }
 
-        logger.LogInformation("Deleted greeting {GreetingId}", id);
+        LogGreetingDeleted(logger, id);
         return TypedResults.NoContent();
     }
+
+    [LoggerMessage(
+        EventId = 2003,
+        Level = LogLevel.Information,
+        Message = "Deleted greeting {GreetingId}")]
+    private static partial void LogGreetingDeleted(ILogger logger, GreetingId greetingId);
 }

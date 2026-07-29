@@ -1,7 +1,12 @@
 using System.ComponentModel;
+
 using Dapper;
+
 using Microsoft.AspNetCore.Http.HttpResults;
+
 using Npgsql;
+
+using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Languages;
@@ -15,7 +20,7 @@ public static class GetLanguage
     /// <param name="CreatedAt">The UTC time when the language was created.</param>
     /// <param name="UpdatedAt">The UTC time when the language was last updated.</param>
     public sealed record Response(
-        Guid Id,
+        LanguageId Id,
         string Name,
         string Code,
         DateTimeOffset CreatedAt,
@@ -33,7 +38,7 @@ public static class GetLanguage
     }
 
     private static async Task<Results<Ok<Response>, NotFound>> Handle(
-        [Description("The unique language identifier.")] Guid id,
+        [Description("The unique language identifier.")] LanguageId id,
         NpgsqlDataSource dataSource,
         CancellationToken cancellationToken)
     {
@@ -57,7 +62,7 @@ public static class GetLanguage
             : TypedResults.Ok(ToResponse(databaseLanguage));
     }
 
-    private sealed record DatabaseResponse(Guid Id, string Name, string Code, DateTime CreatedAt, DateTime UpdatedAt);
+    private sealed record DatabaseResponse(LanguageId Id, string Name, string Code, DateTime CreatedAt, DateTime UpdatedAt);
 
     private static Response ToResponse(DatabaseResponse value) =>
         new(value.Id, value.Name, value.Code, UtcInstant.FromDatabase(value.CreatedAt), UtcInstant.FromDatabase(value.UpdatedAt));

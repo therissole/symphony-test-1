@@ -15,7 +15,8 @@ one named slice file.
 2. Record the existing HTTP route, payload, response, and status-code contract before editing.
 3. Create or update one `<Verb><UseCase>.cs` file under the relevant feature capability.
 4. Define request-specific `Request` and `Response` records inside the slice. Do not reuse a
-   database entity or another slice's DTO merely because their current fields match.
+   database entity or another slice's DTO merely because their current fields match. Use
+   `LanguageId` and `GreetingId` rather than raw `Guid` entity identifiers.
 5. For validated input, add an
    `internal sealed RequestValidator : AbstractValidator<Request>` inside the slice file. Inject
    `IValidator<Request>` into the handler, call `ValidateAsync` before I/O, and return
@@ -34,8 +35,8 @@ one named slice file.
 11. Unit-test the nested validator directly when rules warrant it, add HTTP integration tests for
     every outcome, and use end-to-end tests only for workflows crossing multiple slices.
 12. Update user and architecture documentation when behavior or conventions change.
-13. Run formatting, a warning-free build, the full Docker-backed test suite, and the vulnerable
-    package audit.
+13. Run locked restore, a warning-free build, generated OpenAPI linting, formatting, the full
+    Docker-backed test suite, and the vulnerable package audit.
 
 ## Boundaries
 

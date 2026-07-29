@@ -28,7 +28,7 @@ public class WebArchitectureTests
     }
 
     [Test]
-    public void WebProject_DependsOnBrowserLibrariesButNotApiOrPersistence()
+    public void WebProject_DependsOnlyOnClientDefaultsAndBrowserLibraries()
     {
         var project = XDocument.Load(Path.Combine(_webRoot, "symphony-test-1.Web.csproj"));
         var projectReferences = project.Descendants("ProjectReference")
@@ -42,8 +42,13 @@ public class WebArchitectureTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(projectReferences, Is.Empty,
-                "The WASM client must communicate through HTTP rather than reference the API assembly.");
+            Assert.That(
+                projectReferences,
+                Is.EquivalentTo(
+                [
+                    @"..\symphony-test-1.ClientServiceDefaults\symphony-test-1.ClientServiceDefaults.csproj"
+                ]),
+                "The WASM client may reference only browser-safe platform defaults.");
             Assert.That(packages, Does.Contain("MudBlazor"));
             Assert.That(packages, Does.Not.Contain("Dapper"));
             Assert.That(packages, Does.Not.Contain("Npgsql"));

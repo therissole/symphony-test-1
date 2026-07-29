@@ -72,7 +72,9 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>
         foreach (var migrationPath in Directory.GetFiles(migrationsPath, "V*.sql").Order())
         {
             var migration = await File.ReadAllTextAsync(migrationPath);
+#pragma warning disable CA2100 // Migration SQL is trusted, versioned repository content.
             await using var command = new NpgsqlCommand(migration, connection);
+#pragma warning restore CA2100
             await command.ExecuteNonQueryAsync();
         }
     }

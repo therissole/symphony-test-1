@@ -9,6 +9,7 @@ internal sealed class CreateGreetingDsl(AcceptanceScenario scenario, ICreateGree
 
     public async Task LanguageExistsAsync(string alias, CancellationToken ct)
     {
+        // The driver returns a test-owned representation, never an application request or response model.
         _language = await driver.CreateLanguageEntryAsync(scenario.Data.LanguageName(alias), scenario.Data.LanguageCode(alias), ct);
         scenario.TrackCleanup(token => driver.DeleteLanguageAsync(_language, token));
     }

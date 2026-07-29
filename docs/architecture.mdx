@@ -192,6 +192,7 @@ Shared code is intentionally small:
 | Same-origin gateway | Preserves browser routing while allowing independent API and Web resources |
 | Keycloak/JWT authentication | Identity validation and request authorization are platform boundaries |
 | FluentValidation registration | Discovers internal validators while rules remain inside slices |
+| Typed entity IDs | Prevents cross-entity UUID mistakes while preserving UUID wire contracts |
 | Capability route registration | Composes slices without owning their behavior |
 | UI shell and state components | Stable visual behavior shared by unrelated pages |
 | RFC 7807 client parsing | HTTP error mechanics without resource-specific behavior |
@@ -251,6 +252,11 @@ Because those contracts intentionally share the nested names `Request` and `Resp
 composition root prefixes OpenAPI schema reference IDs with the declaring slice name so every
 contract remains distinct.
 
+`LanguageId` and `GreetingId` are stable cross-cutting identifier primitives, not shared endpoint
+DTOs. Minimal API parsing, JSON converters, Dapper type handlers, and OpenAPI transformations keep
+them as UUID strings at every external boundary while preventing accidental assignment between
+entity types inside the API.
+
 ## Transactions and domain logic
 
 The sample's commands each require one SQL statement, so they do not need explicit transactions.
@@ -290,16 +296,19 @@ resolve to unique physical values, while server-issued identifiers remain inside
 
 ## Observability boundary
 
-The gateway uses the same Aspire service defaults as the API. Requests for the host page, static
-assets, and proxied `/api` routes therefore appear as gateway server spans. API requests carry the
-distributed trace context onward, so Aspire can show the browser-facing gateway request and API
-work in one trace.
-
-The WebAssembly runtime executes inside the browser, not inside the Aspire-managed Web development
-server. Component rendering, client-side navigation, and UI events therefore do not automatically
-produce Aspire spans. Capturing those semantic operations requires deliberate browser-side
-OpenTelemetry instrumentation and a suitable telemetry intake; separating the Web resource
-improves server-boundary visibility but does not itself instrument browser execution.
+The AppHost uses Aspire's Blazor hosting integration to serve the WebAssembly client through the
+gateway. It provides client configuration before the runtime starts and maps the browser's relative
+`/_otlp` endpoint to an authenticated server-side proxy. The browser-safe
+`symphony-test-1.ClientServiceDefaults` Razor class library contributes an
+`onRuntimeConfigLoaded` JavaScript initializer, which fetches Aspire's generated
+`_blazor/_configuration` endpoint before .NET starts. The WebAssembly client imports those
+environment values into configuration, starts its OpenTelemetry providers explicitly, and uses an
+`IHttpClientFactory` client addressed as `https+http://api`. Aspire service discovery resolves that
+logical address to the gateway's generated API proxy. The WebAssembly project explicitly enables
+metrics, EventSource diagnostics, and `System.Net.Http.EnableActivityPropagation`; Blazor otherwise
+disables the HTTP activity propagation feature during linking. The proxy supplies dashboard
+credentials, and browser HTTP spans share W3C trace context with gateway, API, and PostgreSQL spans
+without exposing dashboard credentials to the browser.
 
 The migration harness applies all ordered `V*.sql` files, so adding a migration does not require
 editing test infrastructure.

@@ -9,52 +9,58 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    
+
     permissions:
       contents: read
       checks: write
       pull-requests: write
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '10.0.x'
-    
-    - name: Restore dependencies
-      run: dotnet restore
-    
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
 
-    - name: Verify formatting
-      run: dotnet format symphony-test-1.slnx --verify-no-changes --no-restore
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      with:
+        dotnet-version: '10.0.302'
+
+    - name: Restore locked dependencies
+      run: dotnet restore symphony-test-1.slnx --locked-mode
+
+    - name: Build
+      run: dotnet build symphony-test-1.slnx --no-restore --configuration Release
+
+    - name: Lint generated OpenAPI contract
+      shell: pwsh
+      run: >-
+        ./tools/lint-openapi.ps1
+        src/symphony-test-1.Api/obj/openapi/symphony-test-1.json
+
+    - name: Verify Roslyn code style
+      run: dotnet format symphony-test-1.slnx style --verify-no-changes --no-restore
 
     - name: Audit vulnerable packages
       run: dotnet list symphony-test-1.slnx package --vulnerable --include-transitive --no-restore
-    
+
     - name: Run Unit Tests
-      run: dotnet test tests/unit/symphony-test-1.UnitTests/symphony-test-1.UnitTests.csproj --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=unit-test-results.trx"
+      run: dotnet test tests/unit/symphony-test-1.UnitTests/symphony-test-1.UnitTests.csproj --no-build --no-restore --configuration Release --verbosity normal --logger "trx;LogFileName=unit-test-results.trx"
 
     - name: Run UI Component Tests
-      run: dotnet test tests/ui/symphony-test-1.WebTests/symphony-test-1.WebTests.csproj --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=ui-test-results.trx"
-    
+      run: dotnet test tests/ui/symphony-test-1.WebTests/symphony-test-1.WebTests.csproj --no-build --no-restore --configuration Release --verbosity normal --logger "trx;LogFileName=ui-test-results.trx"
+
     - name: Run Integration Tests
-      run: dotnet test tests/integration/symphony-test-1.IntegrationTests/symphony-test-1.IntegrationTests.csproj --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=integration-test-results.trx"
+      run: dotnet test tests/integration/symphony-test-1.IntegrationTests/symphony-test-1.IntegrationTests.csproj --no-build --no-restore --configuration Release --verbosity normal --logger "trx;LogFileName=integration-test-results.trx"
 
     - name: Install Playwright Chromium
       run: pwsh tests/e2e/symphony-test-1.E2ETests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
-    
+
     - name: Run E2E Tests
-      run: dotnet test tests/e2e/symphony-test-1.E2ETests/symphony-test-1.E2ETests.csproj --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=e2e-test-results.trx"
+      run: dotnet test tests/e2e/symphony-test-1.E2ETests/symphony-test-1.E2ETests.csproj --no-build --no-restore --configuration Release --verbosity normal --logger "trx;LogFileName=e2e-test-results.trx"
 
     - name: Run black-box acceptance tests
       run: pwsh tests/acceptance/run.ps1
-    
+
     - name: Publish test results
-      uses: EnricoMi/publish-unit-test-result-action@v2
+      uses: EnricoMi/publish-unit-test-result-action@b3f8796819acf652cecbf27a64fa9ac8d7e137ee # v2
       if: always()
       with:
         files: |
@@ -63,22 +69,25 @@ jobs:
   aspire-smoke-test:
     runs-on: ubuntu-latest
     needs: build-and-test
-    
+
     permissions:
       contents: read
-    
+
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
       with:
-        dotnet-version: '10.0.x'
+        dotnet-version: '10.0.302'
 
     - name: Install Aspire CLI
       run: |
-        curl -sSL https://aspire.dev/install.sh | bash
+        curl -sSL https://aspire.dev/install.sh | bash -s -- --version 13.4.6
         echo "$HOME/.aspire/bin" >> "$GITHUB_PATH"
+
+    - name: Restore locked dependencies
+      run: dotnet restore symphony-test-1.slnx --locked-mode
 
     - name: Start Aspire application
       run: |
@@ -115,21 +124,52 @@ jobs:
       if: always()
       run: aspire stop --all --non-interactive
 
+  codeql:
+    name: CodeQL security analysis
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      with:
+        dotnet-version: '10.0.302'
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@adfda868f108ac4222129de456ea554034a27db7 # v4
+      with:
+        languages: csharp
+        queries: security-extended
+
+    - name: Restore locked dependencies
+      run: dotnet restore symphony-test-1.slnx --locked-mode
+
+    - name: Build for CodeQL
+      run: dotnet build symphony-test-1.slnx --configuration Release --no-restore
+
+    - name: Analyze
+      uses: github/codeql-action/analyze@adfda868f108ac4222129de456ea554034a27db7 # v4
+
   # documentation:
   #   runs-on: ubuntu-latest
   #   needs: build-and-test
   #   if: github.ref == 'refs/heads/main'
-  #   
+  #
   #   steps:
   #   - uses: actions/checkout@v4
-  #   
+  #
   #   - name: Install Mintlify
   #     run: npm install -g mintlify
-  #   
+  #
   #   - name: Build documentation
   #     run: mintlify build
   #     working-directory: ./docs
-  #   
+  #
   #   - name: Deploy to GitHub Pages
   #     uses: peaceiris/actions-gh-pages@v4
   #     with:

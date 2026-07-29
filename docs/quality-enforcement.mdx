@@ -1,0 +1,82 @@
+---
+title: Deterministic quality enforcement
+description: 'Build, analyzer, architecture, API contract, dependency, and security gates'
+---
+
+# Deterministic quality enforcement
+
+Repository instructions and agent skills explain intent, but they are not the enforcement
+boundary. A change is acceptable only when the compiler, analyzers, contract checks, and tests
+accept it. The same commands run locally and in CI.
+
+## Build policy
+
+The repository pins .NET SDK `10.0.302` in `global.json`. `Directory.Build.props` applies the
+following policy to every project:
+
+- .NET recommended analyzers and all .NET security analyzers run during compilation.
+- Compiler, analyzer, and code-style warnings fail the build.
+- NuGet audits direct and transitive dependencies at `moderate` severity or above.
+- Every project uses a committed `packages.lock.json`.
+- the banned-API analyzer reads `BannedSymbols.txt`.
+
+`.editorconfig` is the source of truth for editor whitespace, namespace placement, naming, and the
+compiler-enforceable style rules. CI runs Roslyn's semantic `style` formatter rather than
+normalizing line endings, so Windows and Unix checkouts remain valid. `BannedSymbols.txt` rejects
+nondeterministic wall-clock access, blocking sleeps, and the alternate JSON stack. Use
+`TimeProvider`, asynchronous coordination, and `System.Text.Json` instead.
+
+## Repository Roslyn analyzer
+
+`tools/SymphonyTest1.Analyzers` is referenced by the API as an analyzer, so its diagnostics run
+inside normal `dotnet build`:
+
+| Diagnostic | Enforced convention |
+| --- | --- |
+| `SYM001` | Entity identifiers in API slices use `LanguageId` or `GreetingId`, not raw `Guid` |
+| `SYM002` | Every Dapper `CommandDefinition` receives `cancellationToken` |
+| `SYM003` | Every `OpenConnectionAsync` receives a cancellation token |
+| `SYM004` | Slice handlers return typed Minimal API results and use `TypedResults` |
+| `SYM005` | Dapper SQL is a compile-time constant rather than interpolated or concatenated text |
+| `SYM006` | A handler with a validator validates before opening a database connection |
+| `SYM007` | A top-level slice matches its filename and exposes a public static `Map` method |
+
+Analyzer tests compile deliberately good and bad source in memory. They prove both that each
+diagnostic fires and that a compliant slice remains clean.
+
+## Typed identifiers and wire compatibility
+
+`LanguageId` and `GreetingId` prevent accidental cross-entity assignment inside the API. Their
+JSON converters, Minimal API parsers, Dapper handlers, and OpenAPI schema transformers preserve
+the existing external UUID-string contract. Unit tests cover parsing and JSON round trips;
+integration tests require identifier parameters and schemas to remain `string`/`uuid`.
+
+## Architecture and API contract checks
+
+NUnit architecture tests protect dependency direction, slice ownership, feature neutrality, and
+authentication boundaries. They complement Roslyn: semantic compiler rules live in the analyzer,
+while whole-repository relationships live in tests.
+
+The API emits OpenAPI 3.1 during the Release build. `tools/lint-openapi.ps1` checks that generated
+artifact without starting the application or downloading another package. It requires:
+
+- unique operation IDs, summaries, descriptions, tags, and successful responses;
+- descriptions and required flags on parameters;
+- bearer security and documented `401` responses on administration routes;
+- documented contract properties and typed UUID schemas; and
+- resolvable component schema references.
+
+Run the same deterministic gate used by CI:
+
+```powershell
+dotnet restore symphony-test-1.slnx --locked-mode
+dotnet build symphony-test-1.slnx --configuration Release --no-restore
+pwsh tools/lint-openapi.ps1 src/symphony-test-1.Api/obj/openapi/symphony-test-1.json
+dotnet format symphony-test-1.slnx style --verify-no-changes --no-restore
+dotnet test symphony-test-1.slnx --configuration Release --no-build --no-restore
+dotnet list symphony-test-1.slnx package --vulnerable --include-transitive --no-restore
+```
+
+Docker must be available for integration, end-to-end, and acceptance tests. CI additionally runs
+the CodeQL `security-extended` query suite. These gates make agent review additive: an agent can
+suggest a new rule, but it cannot waive an existing one.

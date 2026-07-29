@@ -42,6 +42,7 @@ Use `.github/skills/build-vertical-slice/SKILL.md` for feature work.
   global Problem Details handler.
 - Use parameterized Dapper SQL and pass `CancellationToken` through `CommandDefinition` and
   connection opening.
+- Use `LanguageId` and `GreetingId` instead of raw `Guid` entity identifiers inside the API.
 - Project query results directly into the slice response. Prefer PostgreSQL `RETURNING` for
   commands that return a representation.
 - Never expose exception, database, connection, or secret details to API clients.
@@ -62,10 +63,12 @@ Use `.github/skills/build-vertical-slice/SKILL.md` for feature work.
 Run:
 
 ```bash
-dotnet build symphony-test-1.slnx --configuration Release
+dotnet restore symphony-test-1.slnx --locked-mode
+dotnet build symphony-test-1.slnx --configuration Release --no-restore
+pwsh tools/lint-openapi.ps1 src/symphony-test-1.Api/obj/openapi/symphony-test-1.json
 pwsh tests/e2e/symphony-test-1.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium
-dotnet test symphony-test-1.slnx --configuration Release --no-build
-dotnet list symphony-test-1.slnx package --vulnerable --include-transitive
+dotnet test symphony-test-1.slnx --configuration Release --no-build --no-restore
+dotnet list symphony-test-1.slnx package --vulnerable --include-transitive --no-restore
 ```
 
 Docker must be available for integration and end-to-end tests.

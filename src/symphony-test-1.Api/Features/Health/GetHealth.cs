@@ -1,10 +1,12 @@
 using Dapper;
+
 using Microsoft.AspNetCore.Http.HttpResults;
+
 using Npgsql;
 
 namespace SymphonyTest1.Api.Features.Health;
 
-public static class GetHealth
+public static partial class GetHealth
 {
     /// <summary>Describes the API and database health at the time of the check.</summary>
     /// <param name="Status">The overall health state.</param>
@@ -43,17 +45,29 @@ public static class GetHealth
                     new Response("Healthy", "Connected", timeProvider.GetUtcNow()));
             }
 
-            logger.LogWarning("Health check query did not return the expected result");
+            LogUnexpectedHealthResult(logger);
             return TypedResults.Json(
                 new Response("Unhealthy", "Query failed", timeProvider.GetUtcNow()),
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Health check could not reach the database");
+            LogDatabaseUnavailable(logger, exception);
             return TypedResults.Json(
                 new Response("Unhealthy", "Unavailable", timeProvider.GetUtcNow()),
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
     }
+
+    [LoggerMessage(
+        EventId = 3001,
+        Level = LogLevel.Warning,
+        Message = "Health check query did not return the expected result")]
+    private static partial void LogUnexpectedHealthResult(ILogger logger);
+
+    [LoggerMessage(
+        EventId = 3002,
+        Level = LogLevel.Error,
+        Message = "Health check could not reach the database")]
+    private static partial void LogDatabaseUnavailable(ILogger logger, Exception exception);
 }

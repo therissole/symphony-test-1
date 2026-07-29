@@ -1,15 +1,23 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.302 AS build
 WORKDIR /src
 
+COPY ["global.json", "."]
+COPY ["Directory.Build.props", "."]
+COPY ["BannedSymbols.txt", "."]
+COPY [".editorconfig", "."]
 COPY ["src/symphony-test-1.Api/symphony-test-1.Api.csproj", "src/symphony-test-1.Api/"]
+COPY ["src/symphony-test-1.Api/packages.lock.json", "src/symphony-test-1.Api/"]
 COPY ["src/symphony-test-1.ServiceDefaults/symphony-test-1.ServiceDefaults.csproj", "src/symphony-test-1.ServiceDefaults/"]
-RUN dotnet restore "src/symphony-test-1.Api/symphony-test-1.Api.csproj"
+COPY ["src/symphony-test-1.ServiceDefaults/packages.lock.json", "src/symphony-test-1.ServiceDefaults/"]
+COPY ["tools/SymphonyTest1.Analyzers/SymphonyTest1.Analyzers.csproj", "tools/SymphonyTest1.Analyzers/"]
+COPY ["tools/SymphonyTest1.Analyzers/packages.lock.json", "tools/SymphonyTest1.Analyzers/"]
+RUN dotnet restore "src/symphony-test-1.Api/symphony-test-1.Api.csproj" --locked-mode
 
 COPY . .
 WORKDIR "/src/src/symphony-test-1.Api"
 RUN dotnet publish "symphony-test-1.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.10 AS final
 WORKDIR /app
 EXPOSE 8080
 

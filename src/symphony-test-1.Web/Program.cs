@@ -1,14 +1,23 @@
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using MudBlazor;
 using MudBlazor.Services;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
+using SymphonyTest1.ClientServiceDefaults;
 using SymphonyTest1.Web;
 using SymphonyTest1.Web.Infrastructure.Authentication;
+using SymphonyTest1.Web.Infrastructure;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+builder.Configuration.AddEnvironmentVariables();
+builder.AddBlazorClientServiceDefaults();
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
@@ -23,9 +32,17 @@ if (builder.HostEnvironment.IsEnvironment("Testing"))
 }
 else
 {
+    var configuredApiEndpoint = builder.Configuration["services:api:https:0"]
+        ?? builder.Configuration["services:api:http:0"]
+        ?? throw new InvalidOperationException(
+            "Aspire did not supply an API endpoint for the browser client.");
+    var configuredApiBaseAddress = new Uri(
+        $"{configuredApiEndpoint.TrimEnd('/')}/",
+        UriKind.Absolute);
+
     using var bootstrapClient = new HttpClient
     {
-        BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
+        BaseAddress = configuredApiBaseAddress
     };
     var authenticationConfiguration = await bootstrapClient.GetFromJsonAsync<AuthenticationConfiguration>(
         "api/authentication/configuration")
@@ -43,18 +60,22 @@ else
         options.ProviderOptions.DefaultScopes.Add("email");
     });
 
+    builder.Services.AddTransient(serviceProvider =>
+        new ApiAuthorizationMessageHandler(
+            serviceProvider.GetRequiredService<IAccessTokenProvider>(),
+            serviceProvider.GetRequiredService<NavigationManager>())
+            .ConfigureForApi(builder.HostEnvironment.BaseAddress));
+    builder.Services.AddHttpClient(
+            ApiAuthorizationMessageHandler.ClientName,
+            client =>
+            {
+                client.BaseAddress = ApiAuthorizationMessageHandler.ServiceAddress;
+            })
+        .AddHttpMessageHandler<ApiAuthorizationMessageHandler>();
     builder.Services.AddScoped(serviceProvider =>
-    {
-        var handler = serviceProvider
-            .GetRequiredService<AuthorizationMessageHandler>()
-            .ConfigureHandler([builder.HostEnvironment.BaseAddress]);
-        handler.InnerHandler = new HttpClientHandler();
-
-        return new HttpClient(handler)
-        {
-            BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
-        };
-    });
+        serviceProvider
+            .GetRequiredService<IHttpClientFactory>()
+            .CreateClient(ApiAuthorizationMessageHandler.ClientName));
 }
 
 builder.Services.AddMudServices(configuration =>
@@ -64,4 +85,8 @@ builder.Services.AddMudServices(configuration =>
     configuration.SnackbarConfiguration.ShowCloseIcon = true;
 });
 
-await builder.Build().RunAsync();
+var host = builder.Build();
+_ = host.Services.GetService<MeterProvider>();
+_ = host.Services.GetService<TracerProvider>();
+
+await host.RunAsync();

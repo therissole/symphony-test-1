@@ -134,15 +134,17 @@ development.
 
 ## Aspire traces and browser telemetry
 
-The gateway uses the shared OpenTelemetry defaults. Aspire therefore shows server spans for UI
-page and static-asset requests at the gateway, plus correlated gateway and API spans for `/api`
-calls. This makes the browser-facing boundary visible even though the WebAssembly project executes
-in the browser.
-
-Blazor component rendering, client-side route changes, and browser events do not automatically
-become Aspire spans. Add browser-side OpenTelemetry and an authenticated telemetry intake only if
-that finer-grained product telemetry is needed; it is separate from the hosting and hot-reload
-architecture.
+Aspire's Blazor hosting integration supplies the browser client with OpenTelemetry configuration
+before WebAssembly starts. A browser-safe client-defaults Razor class library supplies the
+`onRuntimeConfigLoaded` initializer that reads Aspire's generated `_blazor/_configuration`, while
+the WebAssembly startup imports those values and explicitly starts its OpenTelemetry providers.
+API calls use an `IHttpClientFactory` client with the logical `https+http://api` service-discovery
+address. The WebAssembly project also opts into metrics, EventSource diagnostics, and HTTP activity
+propagation so its `HttpClient` emits and forwards W3C trace context. The client exports
+HTTP/protobuf telemetry to the gateway's same-origin `/_otlp` route; the gateway injects the
+dashboard credentials and forwards it to Aspire. The dashboard can therefore correlate browser
+HTTP spans with gateway, API, and PostgreSQL spans without exposing dashboard credentials or
+configuring dashboard CORS.
 
 ## Run tests
 
@@ -151,9 +153,10 @@ containers. Build once, then install the Playwright browser runtime before the f
 run:
 
 ```bash
-dotnet build symphony-test-1.slnx --configuration Release
+dotnet restore symphony-test-1.slnx --locked-mode
+dotnet build symphony-test-1.slnx --configuration Release --no-restore
 pwsh tests/e2e/symphony-test-1.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium
-dotnet test symphony-test-1.slnx --configuration Release --no-build
+dotnet test symphony-test-1.slnx --configuration Release --no-build --no-restore
 ```
 
 Run suites individually:
@@ -168,11 +171,12 @@ dotnet test tests/e2e/symphony-test-1.E2ETests/symphony-test-1.E2ETests.csproj
 ## Verify reference quality
 
 ```bash
-dotnet format symphony-test-1.slnx --verify-no-changes
-dotnet build symphony-test-1.slnx --configuration Release
+dotnet restore symphony-test-1.slnx --locked-mode
+dotnet format symphony-test-1.slnx style --verify-no-changes --no-restore
+dotnet build symphony-test-1.slnx --configuration Release --no-restore
 pwsh tests/e2e/symphony-test-1.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium
-dotnet test symphony-test-1.slnx --configuration Release --no-build
-dotnet list symphony-test-1.slnx package --vulnerable --include-transitive
+dotnet test symphony-test-1.slnx --configuration Release --no-build --no-restore
+dotnet list symphony-test-1.slnx package --vulnerable --include-transitive --no-restore
 ```
 
 Next, read [Architecture](/architecture) and inspect

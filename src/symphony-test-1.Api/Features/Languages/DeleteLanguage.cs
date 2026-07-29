@@ -1,11 +1,16 @@
 using System.ComponentModel;
+
 using Dapper;
+
 using Microsoft.AspNetCore.Http.HttpResults;
+
 using Npgsql;
+
+using SymphonyTest1.Api.Infrastructure.Identifiers;
 
 namespace SymphonyTest1.Api.Features.Languages;
 
-public static class DeleteLanguage
+public static partial class DeleteLanguage
 {
     public static void Map(RouteGroupBuilder group)
     {
@@ -19,7 +24,7 @@ public static class DeleteLanguage
     }
 
     private static async Task<Results<NoContent, NotFound>> Handle(
-        [Description("The unique language identifier.")] Guid id,
+        [Description("The unique language identifier.")] LanguageId id,
         NpgsqlDataSource dataSource,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
@@ -36,7 +41,13 @@ public static class DeleteLanguage
             return TypedResults.NotFound();
         }
 
-        logger.LogInformation("Deleted language {LanguageId}", id);
+        LogLanguageDeleted(logger, id);
         return TypedResults.NoContent();
     }
+
+    [LoggerMessage(
+        EventId = 1003,
+        Level = LogLevel.Information,
+        Message = "Deleted language {LanguageId}")]
+    private static partial void LogLanguageDeleted(ILogger logger, LanguageId languageId);
 }

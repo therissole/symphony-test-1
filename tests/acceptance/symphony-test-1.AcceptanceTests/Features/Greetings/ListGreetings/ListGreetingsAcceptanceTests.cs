@@ -9,6 +9,7 @@ namespace AcceptanceTests.Features.Greetings.ListGreetings;
 [FeatureFixture]
 [Category("Acceptance")]
 [NonParallelizable]
+// This scenario changes the explicitly enabled test clock, which is an API-only contract.
 [AcceptanceProtocols(AcceptanceProtocol.Api)]
 public sealed class ListGreetingsAcceptanceTests : FeatureFixture
 {

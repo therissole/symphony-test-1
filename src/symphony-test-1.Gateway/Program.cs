@@ -1,4 +1,5 @@
 using Yarp.ReverseProxy.Configuration;
+using Yarp.ReverseProxy;
 
 namespace SymphonyTest1.Gateway;
 
@@ -9,9 +10,24 @@ public partial class Program
         var builder = WebApplication.CreateBuilder(args);
 
         builder.AddServiceDefaults();
-        builder.Services.AddReverseProxy();
-        builder.Services.AddSingleton<IProxyConfigProvider>(services =>
-            CreateProxyConfig(services.GetRequiredService<IConfiguration>()));
+        builder.WebHost.UseStaticWebAssets();
+
+        var clientApps = builder.Configuration
+            .GetSection("ClientApps")
+            .Get<Dictionary<string, ClientAppConfiguration>>() ?? [];
+
+        if (clientApps.Count > 0)
+        {
+            builder.Services.AddReverseProxy()
+                .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
+                .AddServiceDiscoveryDestinationResolver();
+        }
+        else
+        {
+            builder.Services.AddReverseProxy();
+            builder.Services.AddSingleton<IProxyConfigProvider>(services =>
+                CreateProxyConfig(services.GetRequiredService<IConfiguration>()));
+        }
 
         var app = builder.Build();
         var webBaseUrl = app.Configuration["Gateway:WebBaseUrl"];
@@ -22,27 +38,67 @@ public partial class Program
         }
 
         app.MapDefaultEndpoints();
+        app.MapHealthChecks("/health");
 
-        if (string.IsNullOrWhiteSpace(webBaseUrl))
+        if (clientApps.Count > 0)
+        {
+            app.MapReverseProxy();
+
+            foreach (var clientApp in clientApps.Values)
+            {
+                if (clientApp.ConfigEndpointPath is null
+                    || clientApp.ConfigResponse is null
+                    || clientApp.PathPrefix is null
+                    || clientApp.EndpointsManifest is null)
+                {
+                    throw new InvalidOperationException(
+                        "Aspire supplied an incomplete Blazor client application configuration.");
+                }
+
+                app.MapGet(clientApp.ConfigEndpointPath, () => Results.Content(
+                    clientApp.ConfigResponse!,
+                    "application/json"))
+                    .WithMetadata(new ContentEncodingMetadata("identity", 1.0));
+
+                app.MapGroup(clientApp.PathPrefix)
+                    .MapStaticAssets(clientApp.EndpointsManifest)
+                    .Add(endpoint =>
+                    {
+                        if (endpoint is RouteEndpointBuilder routeEndpoint
+                            && routeEndpoint.RoutePattern.RawText?.Contains("{**path") == true)
+                        {
+                            routeEndpoint.Order = int.MaxValue;
+                        }
+                    });
+            }
+        }
+        else if (string.IsNullOrWhiteSpace(webBaseUrl))
         {
             app.UseBlazorFrameworkFiles();
             app.UseStaticFiles();
-        }
-
-        app.MapReverseProxy();
-
-        if (string.IsNullOrWhiteSpace(webBaseUrl))
-        {
+            app.MapReverseProxy();
             app.MapFallbackToFile(
                 app.Environment.IsEnvironment("Testing")
                     ? "index.Testing.html"
                     : "index.html");
         }
+        else
+        {
+            app.MapReverseProxy();
+        }
 
         app.Run();
     }
 
-    private static IProxyConfigProvider CreateProxyConfig(IConfiguration configuration)
+    public sealed class ClientAppConfiguration
+    {
+        public string? PathPrefix { get; set; }
+        public string? EndpointsManifest { get; set; }
+        public string? ConfigEndpointPath { get; set; }
+        public string? ConfigResponse { get; set; }
+    }
+
+    private static InMemoryConfigProvider CreateProxyConfig(IConfiguration configuration)
     {
         var apiBaseUrl = GetRequiredBaseUrl(configuration, "Gateway:ApiBaseUrl");
         var webBaseUrl = configuration["Gateway:WebBaseUrl"];

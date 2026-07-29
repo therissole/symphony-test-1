@@ -1,19 +1,25 @@
 using System.ComponentModel;
+
 using Dapper;
+
 using FluentValidation;
+
 using Microsoft.AspNetCore.Http.HttpResults;
+
 using Npgsql;
+
+using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Greetings;
 
-public static class UpdateGreeting
+public static partial class UpdateGreeting
 {
     /// <summary>Values required to update a greeting.</summary>
     /// <param name="LanguageId">The identifier of the language associated with the greeting.</param>
     /// <param name="GreetingText">The greeting text. Maximum length is 255 characters.</param>
     /// <param name="Formal">Whether the greeting is intended for formal contexts.</param>
-    public sealed record Request(Guid LanguageId, string GreetingText, bool Formal);
+    public sealed record Request(LanguageId LanguageId, string GreetingText, bool Formal);
 
     internal sealed class RequestValidator : AbstractValidator<Request>
     {
@@ -42,8 +48,8 @@ public static class UpdateGreeting
     /// <param name="CreatedAt">The UTC time when the greeting was created.</param>
     /// <param name="UpdatedAt">The UTC time when the greeting was last updated.</param>
     public sealed record Response(
-        Guid Id,
-        Guid LanguageId,
+        GreetingId Id,
+        LanguageId LanguageId,
         string GreetingText,
         bool Formal,
         DateTimeOffset CreatedAt,
@@ -63,7 +69,7 @@ public static class UpdateGreeting
     }
 
     private static async Task<Results<Ok<Response>, ValidationProblem, NotFound>> Handle(
-        [Description("The unique greeting identifier.")] Guid id,
+        [Description("The unique greeting identifier.")] GreetingId id,
         Request request,
         IValidator<Request> validator,
         NpgsqlDataSource dataSource,
@@ -118,7 +124,7 @@ public static class UpdateGreeting
 
             var greeting = ToResponse(databaseGreeting);
 
-            logger.LogInformation("Updated greeting {GreetingId}", id);
+            LogGreetingUpdated(logger, id);
             return TypedResults.Ok(greeting);
         }
         catch (PostgresException exception)
@@ -132,8 +138,8 @@ public static class UpdateGreeting
     }
 
     private sealed record DatabaseResponse(
-        Guid Id,
-        Guid LanguageId,
+        GreetingId Id,
+        LanguageId LanguageId,
         string GreetingText,
         bool Formal,
         DateTime CreatedAt,
@@ -147,4 +153,10 @@ public static class UpdateGreeting
             value.Formal,
             UtcInstant.FromDatabase(value.CreatedAt),
             UtcInstant.FromDatabase(value.UpdatedAt));
+
+    [LoggerMessage(
+        EventId = 2002,
+        Level = LogLevel.Information,
+        Message = "Updated greeting {GreetingId}")]
+    private static partial void LogGreetingUpdated(ILogger logger, GreetingId greetingId);
 }

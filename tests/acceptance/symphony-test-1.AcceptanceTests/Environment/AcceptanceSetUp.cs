@@ -1,5 +1,6 @@
 using AcceptanceTests.Environment;
 
+#pragma warning disable CA1050 // This NUnit SetUpFixture intentionally applies assembly-wide.
 [SetUpFixture]
 public sealed class AcceptanceSetUp
 {
@@ -17,3 +18,4 @@ public sealed class AcceptanceSetUp
         Options = options;
     }
 }
+#pragma warning restore CA1050

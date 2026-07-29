@@ -1,11 +1,16 @@
 using System.Diagnostics;
+
 using FluentValidation;
+
 using Microsoft.AspNetCore.OpenApi;
+using Microsoft.OpenApi;
+
 using SymphonyTest1.Api.Features.Authentication;
 using SymphonyTest1.Api.Features.Greetings;
 using SymphonyTest1.Api.Features.Health;
 using SymphonyTest1.Api.Features.Languages;
 using SymphonyTest1.Api.Infrastructure.Authentication;
+using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Testing;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,6 +29,42 @@ builder.Services.AddOpenApi(options =>
             : $"{declaringType.Name}{defaultId}";
     };
     options.AddBearerSecurity();
+    options.AddSchemaTransformer((schema, context, _) =>
+    {
+        var schemaType = Nullable.GetUnderlyingType(context.JsonTypeInfo.Type)
+            ?? context.JsonTypeInfo.Type;
+        if (schemaType == typeof(LanguageId)
+            || schemaType == typeof(GreetingId))
+        {
+            schema.Type = JsonSchemaType.String;
+            schema.Format = "uuid";
+        }
+
+        return Task.CompletedTask;
+    });
+    options.AddOperationTransformer((operation, _, _) =>
+    {
+        foreach (var parameter in operation.Parameters?.OfType<OpenApiParameter>() ?? [])
+        {
+            if (parameter.In != ParameterLocation.Query
+                || string.IsNullOrEmpty(parameter.Name))
+            {
+                continue;
+            }
+
+            parameter.Name = char.ToLowerInvariant(parameter.Name[0])
+                + parameter.Name[1..];
+
+            if (parameter.Name == "languageId"
+                && parameter.Schema is OpenApiSchema schema)
+            {
+                schema.Type = JsonSchemaType.String;
+                schema.Format = "uuid";
+            }
+        }
+
+        return Task.CompletedTask;
+    });
 });
 builder.Services.AddProblemDetails(options =>
 {
@@ -56,6 +97,7 @@ else
 
 builder.AddNpgsqlDataSource("DefaultConnection");
 builder.Services.AddValidatorsFromAssemblyContaining<Program>(includeInternalTypes: true);
+EntityIdTypeHandlers.Register();
 
 var app = builder.Build();
 
@@ -97,4 +139,3 @@ if (enableClockControl)
 app.Run();
 
 public partial class Program { }
-

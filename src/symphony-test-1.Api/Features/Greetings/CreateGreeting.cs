@@ -1,18 +1,23 @@
 using Dapper;
+
 using FluentValidation;
+
 using Microsoft.AspNetCore.Http.HttpResults;
+
 using Npgsql;
+
+using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Greetings;
 
-public static class CreateGreeting
+public static partial class CreateGreeting
 {
     /// <summary>Values required to create a greeting.</summary>
     /// <param name="LanguageId">The identifier of the language associated with the greeting.</param>
     /// <param name="GreetingText">The greeting text. Maximum length is 255 characters.</param>
     /// <param name="Formal">Whether the greeting is intended for formal contexts.</param>
-    public sealed record Request(Guid LanguageId, string GreetingText, bool Formal);
+    public sealed record Request(LanguageId LanguageId, string GreetingText, bool Formal);
 
     internal sealed class RequestValidator : AbstractValidator<Request>
     {
@@ -41,8 +46,8 @@ public static class CreateGreeting
     /// <param name="CreatedAt">The UTC time when the greeting was created.</param>
     /// <param name="UpdatedAt">The UTC time when the greeting was last updated.</param>
     public sealed record Response(
-        Guid Id,
-        Guid LanguageId,
+        GreetingId Id,
+        LanguageId LanguageId,
         string GreetingText,
         bool Formal,
         DateTimeOffset CreatedAt,
@@ -102,10 +107,7 @@ public static class CreateGreeting
         {
             var databaseGreeting = await connection.QuerySingleAsync<DatabaseResponse>(command);
             var greeting = ToResponse(databaseGreeting);
-            logger.LogInformation(
-                "Created greeting {GreetingId} for language {LanguageId}",
-                greeting.Id,
-                greeting.LanguageId);
+            LogGreetingCreated(logger, greeting.Id, greeting.LanguageId);
 
             return TypedResults.Created($"/api/greetings/{greeting.Id}", greeting);
         }
@@ -120,8 +122,8 @@ public static class CreateGreeting
     }
 
     private sealed record DatabaseResponse(
-        Guid Id,
-        Guid LanguageId,
+        GreetingId Id,
+        LanguageId LanguageId,
         string GreetingText,
         bool Formal,
         DateTime CreatedAt,
@@ -135,4 +137,13 @@ public static class CreateGreeting
             value.Formal,
             UtcInstant.FromDatabase(value.CreatedAt),
             UtcInstant.FromDatabase(value.UpdatedAt));
+
+    [LoggerMessage(
+        EventId = 2001,
+        Level = LogLevel.Information,
+        Message = "Created greeting {GreetingId} for language {LanguageId}")]
+    private static partial void LogGreetingCreated(
+        ILogger logger,
+        GreetingId greetingId,
+        LanguageId languageId);
 }

@@ -1,13 +1,18 @@
 using Dapper;
+
 using FluentValidation;
+
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+
 using Npgsql;
+
+using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
 namespace SymphonyTest1.Api.Features.Languages;
 
-public static class CreateLanguage
+public static partial class CreateLanguage
 {
     /// <summary>Values required to create a language.</summary>
     /// <param name="Name">The human-readable language name. Maximum length is 100 characters.</param>
@@ -43,7 +48,7 @@ public static class CreateLanguage
     /// <param name="CreatedAt">The UTC time when the language was created.</param>
     /// <param name="UpdatedAt">The UTC time when the language was last updated.</param>
     public sealed record Response(
-        Guid Id,
+        LanguageId Id,
         string Name,
         string Code,
         DateTimeOffset CreatedAt,
@@ -97,10 +102,7 @@ public static class CreateLanguage
         {
             var databaseLanguage = await connection.QuerySingleAsync<DatabaseResponse>(command);
             var language = ToResponse(databaseLanguage);
-            logger.LogInformation(
-                "Created language {LanguageId} with code {LanguageCode}",
-                language.Id,
-                language.Code);
+            LogLanguageCreated(logger, language.Id, language.Code);
 
             return TypedResults.Created($"/api/languages/{language.Id}", language);
         }
@@ -116,8 +118,17 @@ public static class CreateLanguage
         }
     }
 
-    private sealed record DatabaseResponse(Guid Id, string Name, string Code, DateTime CreatedAt, DateTime UpdatedAt);
+    private sealed record DatabaseResponse(LanguageId Id, string Name, string Code, DateTime CreatedAt, DateTime UpdatedAt);
 
     private static Response ToResponse(DatabaseResponse value) =>
         new(value.Id, value.Name, value.Code, UtcInstant.FromDatabase(value.CreatedAt), UtcInstant.FromDatabase(value.UpdatedAt));
+
+    [LoggerMessage(
+        EventId = 1001,
+        Level = LogLevel.Information,
+        Message = "Created language {LanguageId} with code {LanguageCode}")]
+    private static partial void LogLanguageCreated(
+        ILogger logger,
+        LanguageId languageId,
+        string languageCode);
 }
