@@ -21,9 +21,10 @@ internal sealed class BrowserTransport(AcceptanceOptions options) : IAsyncDispos
         _playwright = await Playwright.CreateAsync();
         _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
         _page = await _browser.NewPageAsync();
-        var returnUrl = Uri.EscapeDataString(options.BaseUri.ToString());
+        var webBaseUri = new Uri(options.BaseUri, "web/");
+        var returnUrl = Uri.EscapeDataString(webBaseUri.ToString());
         // Authenticate through the deployed OIDC flow; browser acceptance tests do not inject a token.
-        await _page.GotoAsync(new Uri(options.BaseUri, $"authentication/login?returnUrl={returnUrl}").ToString());
+        await _page.GotoAsync(new Uri(webBaseUri, $"authentication/login?returnUrl={returnUrl}").ToString());
         await _page.Locator("#username").FillAsync(options.BrowserUserName);
         await _page.Locator("#password").FillAsync(options.BrowserPassword);
         await _page.Locator("#kc-login").ClickAsync();
