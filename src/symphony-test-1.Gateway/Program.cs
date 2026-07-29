@@ -82,6 +82,10 @@ public partial class Program
                 app.Environment.IsEnvironment("Testing")
                     ? "index.Testing.html"
                     : "index.html");
+            app.MapFallbackToFile(
+                app.Environment.IsEnvironment("Testing")
+                    ? "index.Testing.html"
+                    : "index.html");
         }
         else
         {
