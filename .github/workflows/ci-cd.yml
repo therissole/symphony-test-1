@@ -114,7 +114,7 @@ jobs:
         test "$root_status" -ge 200 -a "$root_status" -lt 400
         test "$health_status" = "200"
 
-        for endpoint in /api/languages /api/greetings /api/greetings/by-language/en; do
+        for endpoint in /web/api/api/languages /web/api/api/greetings /web/api/api/greetings/by-language/en; do
           status="$(curl --insecure --output /dev/null --silent --write-out '%{http_code}' "$gateway_url$endpoint")"
           echo "$endpoint status: $status"
           test "$status" = "401"
