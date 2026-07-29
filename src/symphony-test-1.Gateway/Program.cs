@@ -74,10 +74,11 @@ public partial class Program
         }
         else if (string.IsNullOrWhiteSpace(webBaseUrl))
         {
-            app.UseBlazorFrameworkFiles();
-            app.UseStaticFiles();
+            app.UseBlazorFrameworkFiles("/web");
+            app.UseStaticFiles(new StaticFileOptions { RequestPath = "/web" });
             app.MapReverseProxy();
-            app.MapFallbackToFile(
+            app.MapGet("/", () => Results.Redirect("/web/"));
+            app.MapFallbackToFile("/web/{*path:nonfile}",
                 app.Environment.IsEnvironment("Testing")
                     ? "index.Testing.html"
                     : "index.html");
