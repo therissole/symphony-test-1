@@ -83,12 +83,10 @@ public partial class Program
             }
             else
             {
-                app.UseBlazorFrameworkFiles("/web");
-                app.UseStaticFiles(new StaticFileOptions { RequestPath = "/web" });
+                app.UseBlazorFrameworkFiles();
+                app.UseStaticFiles();
                 app.MapReverseProxy();
-                app.MapGet("/", () => Results.Redirect("/web/"));
-                app.MapFallbackToFile("/web/{*path:nonfile}", "index.html");
-                app.MapFallbackToFile("index.html");
+                app.MapFallbackToFile("index.Standalone.html");
             }
         }
         else
