@@ -6,6 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>c117fac1-2668-4161-a76a-cff0e160ebfa</UserSecretsId>
+    <!-- Aspire's SDK resolves native dashboard and orchestration packages per host OS. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
 
   <ItemGroup>
