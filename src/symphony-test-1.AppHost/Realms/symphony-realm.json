@@ -85,7 +85,7 @@
       "bearerOnly": false,
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": true,
       "publicClient": false,
       "secret": "acceptance-tests-local-secret",
@@ -109,6 +109,7 @@
   ],
   "users": [
     {
+      "id": "b612a21b-b2e7-4a97-a2b7-5c3d77d0342c",
       "username": "symphony-admin",
       "enabled": true,
       "emailVerified": true,
@@ -127,6 +128,7 @@
       ]
     },
     {
+      "id": "f5a0f69c-8cc7-4f68-9b45-6ff5b6f8b730",
       "username": "acceptance-browser",
       "enabled": true,
       "emailVerified": true,
@@ -143,6 +145,23 @@
       "realmRoles": [
         "administrator"
       ]
+    },
+    {
+      "id": "907718f8-0d56-421e-8a45-aac8d9679075",
+      "username": "acceptance-standard-user",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Acceptance",
+      "lastName": "Standard User",
+      "email": "acceptance-standard-user@symphony.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "AcceptanceStandard!12345",
+          "temporary": false
+        }
+      ],
+      "realmRoles": []
     }
   ]
 }

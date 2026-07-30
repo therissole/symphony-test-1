@@ -41,6 +41,10 @@ try {
     $env:ACCEPTANCE_CLIENT_SECRET = 'acceptance-tests-local-secret'
     $env:ACCEPTANCE_BROWSER_USERNAME = 'acceptance-browser'
     $env:ACCEPTANCE_BROWSER_PASSWORD = 'Acceptance!12345'
+    $env:ACCEPTANCE_SUPERUSER_USERNAME = 'acceptance-browser'
+    $env:ACCEPTANCE_SUPERUSER_PASSWORD = 'Acceptance!12345'
+    $env:ACCEPTANCE_STANDARD_USER_USERNAME = 'acceptance-standard-user'
+    $env:ACCEPTANCE_STANDARD_USER_PASSWORD = 'AcceptanceStandard!12345'
 
     & dotnet restore $acceptanceProject --locked-mode
     if ($LASTEXITCODE -ne 0) { throw 'The acceptance project did not restore from its lock file.' }

@@ -70,6 +70,7 @@ Run:
 dotnet restore symphony-test-1.slnx --locked-mode
 dotnet build symphony-test-1.slnx --configuration Release --no-restore
 pwsh tools/lint-openapi.ps1 src/symphony-test-1.Api/obj/openapi/symphony-test-1.json
+pwsh tools/test-openfga-model.ps1
 pwsh tests/e2e/symphony-test-1.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium
 dotnet test symphony-test-1.slnx --configuration Release --no-build --no-restore
 dotnet list symphony-test-1.slnx package --vulnerable --include-transitive --no-restore

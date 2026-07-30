@@ -33,6 +33,75 @@ internal sealed class GreetingsDsl(AcceptanceScenario scenario, ICreateGreetingP
             Is.True);
 }
 
+internal sealed class GreetingAuthorizationDsl(
+    AcceptanceScenario scenario,
+    ICreateGreetingProtocolDriver superuserDriver,
+    ICreateGreetingAuthorizationProtocolDriver standardUserDriver)
+{
+    private SupportedLanguage? _language;
+    private IntroducedGreeting? _greeting;
+
+    public async Task LanguageExistsAsync(string alias, CancellationToken ct)
+    {
+        _language = await superuserDriver.CreateLanguageEntryAsync(
+            scenario.Data.LanguageName(alias), scenario.Data.LanguageCode(alias), ct);
+        scenario.TrackCleanup(token => superuserDriver.DeleteLanguageAsync(_language, token));
+    }
+
+    public async Task SuperuserCreatesGreetingAsync(string text, bool formal, CancellationToken ct)
+    {
+        await superuserDriver.CreateGreetingAsync(
+            _language ?? throw new AssertionException("A language is required."), text, formal, ct);
+        _greeting = new IntroducedGreeting(text, formal);
+    }
+
+    public Task StandardUserCannotCreateGreetingAsync(string text, bool formal, CancellationToken ct) =>
+        standardUserDriver.CreateGreetingShouldBeForbiddenAsync(
+            _language ?? throw new AssertionException("A language is required."), text, formal, ct);
+
+    public async Task SuperuserCanSeeGreetingAsync(CancellationToken ct) =>
+        Assert.That(await superuserDriver.IsVisibleAsync(_language!, _greeting!, ct), Is.True);
+}
+
+internal sealed class GreetingDeletionAuthorizationDsl(
+    AcceptanceScenario scenario,
+    IDeleteGreetingAuthorizationProtocolDriver superuserDriver,
+    IDeleteGreetingAuthorizationProtocolDriver standardUserDriver)
+{
+    private SupportedLanguage? _language;
+    private ManagedGreeting? _greeting;
+
+    public async Task LanguageExistsAsync(string alias, CancellationToken ct)
+    {
+        _language = await superuserDriver.CreateLanguageEntryAsync(
+            scenario.Data.LanguageName(alias), scenario.Data.LanguageCode(alias), ct);
+        scenario.TrackCleanup(token => superuserDriver.DeleteLanguageAsync(_language, token));
+    }
+
+    public async Task SuperuserCreatesGreetingAsync(string text, bool formal, CancellationToken ct) =>
+        _greeting = await superuserDriver.CreateGreetingForDeletionAsync(
+            _language ?? throw new AssertionException("A language is required."), text, formal, ct);
+
+    public Task SuperuserDeletesGreetingAsync(CancellationToken ct) =>
+        superuserDriver.DeleteGreetingAsync(
+            _greeting ?? throw new AssertionException("A greeting is required."), ct);
+
+    public Task StandardUserAttemptsToDeleteGreetingAsync(CancellationToken ct) =>
+        standardUserDriver.AttemptToDeleteGreetingAsync(
+            _greeting ?? throw new AssertionException("A greeting is required."), ct);
+
+    public Task DeletionShouldBeDeniedAsync(CancellationToken ct) =>
+        standardUserDriver.DeletionShouldBeDeniedAsync(ct);
+
+    public async Task GreetingShouldBeVisibleAsync(CancellationToken ct) =>
+        Assert.That(await superuserDriver.IsGreetingVisibleAsync(
+            _language!, _greeting!, ct), Is.True);
+
+    public async Task GreetingShouldNotBeVisibleAsync(CancellationToken ct) =>
+        Assert.That(await superuserDriver.IsGreetingVisibleAsync(
+            _language!, _greeting!, ct), Is.False);
+}
+
 internal sealed class ListGreetingsDsl(AcceptanceScenario scenario, IListGreetingsProtocolDriver listDriver)
 {
     private ListedLanguage? _language;
@@ -79,6 +148,7 @@ internal sealed class ListGreetingsDsl(AcceptanceScenario scenario, IListGreetin
 
 internal sealed record SupportedLanguage(Guid? Id, string Name, string Code);
 internal sealed record IntroducedGreeting(string Text, bool Formal);
+internal sealed record ManagedGreeting(Guid? Id, string Text, bool Formal);
 internal sealed record ListedLanguage(Guid Id);
 internal sealed record ListedGreeting(string Text);
 
@@ -87,6 +157,22 @@ internal interface ICreateGreetingProtocolDriver : IAsyncDisposable
     Task<SupportedLanguage> CreateLanguageEntryAsync(string name, string code, CancellationToken ct);
     Task CreateGreetingAsync(SupportedLanguage language, string text, bool formal, CancellationToken ct);
     Task<bool> IsVisibleAsync(SupportedLanguage language, IntroducedGreeting greeting, CancellationToken ct);
+    Task DeleteLanguageAsync(SupportedLanguage language, CancellationToken ct);
+}
+
+internal interface ICreateGreetingAuthorizationProtocolDriver : ICreateGreetingProtocolDriver
+{
+    Task CreateGreetingShouldBeForbiddenAsync(SupportedLanguage language, string text, bool formal, CancellationToken ct);
+}
+
+internal interface IDeleteGreetingAuthorizationProtocolDriver : IAsyncDisposable
+{
+    Task<SupportedLanguage> CreateLanguageEntryAsync(string name, string code, CancellationToken ct);
+    Task<ManagedGreeting> CreateGreetingForDeletionAsync(SupportedLanguage language, string text, bool formal, CancellationToken ct);
+    Task DeleteGreetingAsync(ManagedGreeting greeting, CancellationToken ct);
+    Task AttemptToDeleteGreetingAsync(ManagedGreeting greeting, CancellationToken ct);
+    Task DeletionShouldBeDeniedAsync(CancellationToken ct);
+    Task<bool> IsGreetingVisibleAsync(SupportedLanguage language, ManagedGreeting greeting, CancellationToken ct);
     Task DeleteLanguageAsync(SupportedLanguage language, CancellationToken ct);
 }
 

@@ -7,7 +7,11 @@ internal sealed record AcceptanceOptions(
     string? ClientId,
     string? ClientSecret,
     string? BrowserUserName,
-    string? BrowserPassword)
+    string? BrowserPassword,
+    string? SuperuserUserName,
+    string? SuperuserPassword,
+    string? StandardUserName,
+    string? StandardUserPassword)
 {
     public static bool TryLoad(out AcceptanceOptions? options)
     {
@@ -26,7 +30,11 @@ internal sealed record AcceptanceOptions(
             System.Environment.GetEnvironmentVariable("ACCEPTANCE_CLIENT_ID"),
             System.Environment.GetEnvironmentVariable("ACCEPTANCE_CLIENT_SECRET"),
             System.Environment.GetEnvironmentVariable("ACCEPTANCE_BROWSER_USERNAME"),
-            System.Environment.GetEnvironmentVariable("ACCEPTANCE_BROWSER_PASSWORD"));
+            System.Environment.GetEnvironmentVariable("ACCEPTANCE_BROWSER_PASSWORD"),
+            System.Environment.GetEnvironmentVariable("ACCEPTANCE_SUPERUSER_USERNAME"),
+            System.Environment.GetEnvironmentVariable("ACCEPTANCE_SUPERUSER_PASSWORD"),
+            System.Environment.GetEnvironmentVariable("ACCEPTANCE_STANDARD_USER_USERNAME"),
+            System.Environment.GetEnvironmentVariable("ACCEPTANCE_STANDARD_USER_PASSWORD"));
         return true;
     }
 }

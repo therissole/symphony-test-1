@@ -4,8 +4,11 @@ using Microsoft.Playwright;
 
 namespace AcceptanceTests.Features.Greetings.ProtocolDrivers;
 
-internal sealed class GreetingsWebProtocolDriver(BrowserTransport browser) : ICreateGreetingProtocolDriver
+internal sealed class GreetingsWebProtocolDriver(BrowserTransport browser)
+    : ICreateGreetingProtocolDriver, IDeleteGreetingAuthorizationProtocolDriver
 {
+    private const string DeleteGreetingDeniedMessage = "You do not have permission to delete this greeting.";
+    private IPage? _deleteGreetingPage;
     public async Task<SupportedLanguage> CreateLanguageEntryAsync(string name, string code, CancellationToken ct)
     {
         var page = await browser.PageAsync();
@@ -44,6 +47,41 @@ internal sealed class GreetingsWebProtocolDriver(BrowserTransport browser) : ICr
         return (await row.TextContentAsync())?.Contains(language.Name, StringComparison.Ordinal) == true;
     }
 
+    public async Task<ManagedGreeting> CreateGreetingForDeletionAsync(
+        SupportedLanguage language,
+        string text,
+        bool formal,
+        CancellationToken ct)
+    {
+        await CreateGreetingAsync(language, text, formal, ct);
+        return new ManagedGreeting(null, text, formal);
+    }
+
+    public async Task DeleteGreetingAsync(ManagedGreeting greeting, CancellationToken ct)
+    {
+        var page = await DeleteGreetingFromListAsync(greeting);
+        var row = page.Locator("tr", new() { HasTextString = greeting.Text });
+        await row.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Detached });
+    }
+
+    public async Task AttemptToDeleteGreetingAsync(ManagedGreeting greeting, CancellationToken ct) =>
+        _deleteGreetingPage = await DeleteGreetingFromListAsync(greeting);
+
+    public async Task DeletionShouldBeDeniedAsync(CancellationToken ct)
+    {
+        var page = _deleteGreetingPage ?? throw new AssertionException("The deletion has not been attempted.");
+        await page.GetByText(DeleteGreetingDeniedMessage, new() { Exact = true }).WaitForAsync();
+    }
+
+    public async Task<bool> IsGreetingVisibleAsync(SupportedLanguage language, ManagedGreeting greeting, CancellationToken ct)
+    {
+        var page = await browser.PageAsync();
+        await page.GotoAsync(new Uri(new Uri(page.Url), "/greetings").ToString());
+        await page.GetByTestId("greetings-grid").WaitForAsync();
+        var row = page.Locator("tr", new() { HasTextString = greeting.Text });
+        return await row.CountAsync() > 0;
+    }
+
     public async Task DeleteLanguageAsync(SupportedLanguage language, CancellationToken ct)
     {
         var page = await browser.PageAsync();
@@ -55,4 +93,14 @@ internal sealed class GreetingsWebProtocolDriver(BrowserTransport browser) : ICr
     }
 
     public ValueTask DisposeAsync() => browser.DisposeAsync();
+
+    private async Task<IPage> DeleteGreetingFromListAsync(ManagedGreeting greeting)
+    {
+        var page = await browser.PageAsync();
+        await page.GotoAsync(new Uri(new Uri(page.Url), "/greetings").ToString());
+        var row = page.Locator("tr", new() { HasTextString = greeting.Text });
+        await row.GetByLabel("Delete greeting").ClickAsync();
+        await page.GetByTestId("confirm-delete-greeting").ClickAsync();
+        return page;
+    }
 }

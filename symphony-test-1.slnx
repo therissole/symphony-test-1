@@ -4,6 +4,7 @@
     <Project Path="src/symphony-test-1.Api/symphony-test-1.Api.csproj" />
     <Project Path="src/symphony-test-1.ClientServiceDefaults/symphony-test-1.ClientServiceDefaults.csproj" />
     <Project Path="src/symphony-test-1.DatabaseMigrations/symphony-test-1.DatabaseMigrations.csproj" />
+    <Project Path="src/symphony-test-1.OpenFgaProvisioning/symphony-test-1.OpenFgaProvisioning.csproj" />
     <Project Path="src/symphony-test-1.Gateway/symphony-test-1.Gateway.csproj" />
     <Project Path="src/symphony-test-1.ServiceDefaults/symphony-test-1.ServiceDefaults.csproj" />
     <Project Path="src/symphony-test-1.Web/symphony-test-1.Web.csproj" />

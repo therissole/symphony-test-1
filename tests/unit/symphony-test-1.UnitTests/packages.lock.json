@@ -207,6 +207,11 @@
           "Microsoft.OpenApi": "2.0.0"
         }
       },
+      "Microsoft.Bcl.AsyncInterfaces": {
+        "type": "Transitive",
+        "resolved": "10.0.9",
+        "contentHash": "Aq7M8lG6BrHeatqKqncVm9m55ec34k6nnfPRLe/PvGg+b/pAsRM2ejofeKmCLjTXMa+5NGXm382f8CG/D5WDow=="
+      },
       "Microsoft.Bcl.Cryptography": {
         "type": "Transitive",
         "resolved": "10.0.2",
@@ -752,6 +757,14 @@
           "OpenTelemetry.API": "1.14.0"
         }
       },
+      "OpenFga.Sdk": {
+        "type": "Transitive",
+        "resolved": "0.10.4",
+        "contentHash": "db81Jmqfuq0CLZ4yGyLC37UxlPmm9gxbJg87XiQ78bz7iFhiajuh8QPnkwwima1th1WTi8xqF1GveuepWcCTRg==",
+        "dependencies": {
+          "Microsoft.Bcl.AsyncInterfaces": "10.0.9"
+        }
+      },
       "OpenTelemetry": {
         "type": "Transitive",
         "resolved": "1.15.3",
@@ -882,6 +895,7 @@
           "Microsoft.AspNetCore.OpenApi": "[10.0.10, )",
           "Microsoft.OpenApi": "[2.7.5, )",
           "Npgsql": "[10.0.3, )",
+          "OpenFga.Sdk": "[0.10.4, )",
           "symphony-test-1.ServiceDefaults": "[1.0.0, )"
         }
       },

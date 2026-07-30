@@ -1,0 +1,25 @@
+model
+  schema 1.1
+
+type user
+
+type system
+  relations
+    define superuser: [user]
+    define standard_user: [user]
+    define can_create_language: superuser
+    define can_create_greeting: superuser
+
+type language
+  relations
+    define system: [system]
+    define can_view: superuser from system or standard_user from system
+    define can_update: superuser from system
+    define can_delete: superuser from system
+
+type greeting
+  relations
+    define system: [system]
+    define can_view: superuser from system or standard_user from system
+    define can_update: superuser from system
+    define can_delete: superuser from system

@@ -10,6 +10,7 @@ using SymphonyTest1.Api.Features.Greetings;
 using SymphonyTest1.Api.Features.Health;
 using SymphonyTest1.Api.Features.Languages;
 using SymphonyTest1.Api.Infrastructure.Authentication;
+using SymphonyTest1.Api.Infrastructure.Authorization;
 using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Testing;
 
@@ -76,6 +77,7 @@ builder.Services.AddProblemDetails(options =>
     };
 });
 builder.Services.AddApplicationAuthentication(builder.Configuration);
+builder.Services.AddOpenFgaAuthorization();
 
 var enableClockControl = builder.Configuration.GetValue<bool>("Testing:EnableClockControl");
 if (enableClockControl && builder.Environment.IsProduction())

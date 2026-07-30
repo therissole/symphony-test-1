@@ -23,7 +23,7 @@ operation owns its route, contract, validation, handler, SQL, mapping, and expec
 - Aspire service defaults for OpenTelemetry, health checks, resilience, and service discovery
 - Keycloak OIDC authentication with authorization code + PKCE in the WebAssembly client
 - JWT bearer validation and authenticated administration API boundaries
-- Aspire 13.4 AppHost orchestration for the gateway, Web client, API, Keycloak, PostgreSQL, and database migrations
+- Aspire 13.4 AppHost orchestration for the gateway, Web client, API, Keycloak, PostgreSQL, OpenFGA, and database migrations
 - NUnit architecture, unit, integration, bUnit component, and Playwright browser tests
 - Build-enforced .NET, security, banned-API, and repository-specific Roslyn analyzers
 - Strong `LanguageId` and `GreetingId` types with unchanged UUID JSON and OpenAPI contracts
@@ -94,6 +94,14 @@ src/symphony-test-1.Web/
 
 src/symphony-test-1.DatabaseMigrations/
 └── Program.cs                     # one-shot, versioned SQL migration resource
+
+openfga/
+├── authorization-model.fga         # versioned authorization model
+├── authorization-model.json         # generated API model used for provisioning
+└── authorization-model.tests.fga.yaml # model assertions and representative tuples
+
+src/symphony-test-1.OpenFgaProvisioning/
+└── Program.cs                       # idempotently creates the named store and model version
 
 src/symphony-test-1.ServiceDefaults/
 └── Extensions.cs                  # telemetry, health, resilience, discovery
@@ -235,6 +243,7 @@ Run the quality checks:
 dotnet restore symphony-test-1.slnx --locked-mode
 dotnet build symphony-test-1.slnx --configuration Release --no-restore
 pwsh tools/lint-openapi.ps1 src/symphony-test-1.Api/obj/openapi/symphony-test-1.json
+pwsh tools/test-openfga-model.ps1
 dotnet format symphony-test-1.slnx style --verify-no-changes --no-restore
 pwsh tests/e2e/symphony-test-1.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium
 dotnet test symphony-test-1.slnx --configuration Release --no-build --no-restore
@@ -279,6 +288,11 @@ tests can run against another implementation of the public API.
 - **Defense in depth:** route authorization prevents anonymous navigation in the client, while
   the API independently validates issuer, audience, signature, and token lifetime. Client-side
   visibility is never treated as the security boundary.
+- **OpenFGA preparation:** OpenFGA runs against its own database in the shared PostgreSQL
+  instance. Aspire and Compose run a one-shot provisioner that reuses the named store and only
+  publishes a model version when the committed model changes, then idempotently applies local
+  bootstrap role tuples. `CreateGreeting` now checks `can_create_greeting`; the versioned model,
+  generated API representation, and CLI assertions are verified in CI.
 - **Local realm only:** Aspire imports the committed realm for development. Production deployments
   must provide a managed Keycloak instance, HTTPS authority, and exact environment-specific client
   redirect and logout URIs. The disposable local realm's wildcard redirects and web origins exist

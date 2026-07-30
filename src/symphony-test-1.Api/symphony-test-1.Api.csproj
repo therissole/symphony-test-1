@@ -32,6 +32,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
+    <PackageReference Include="OpenFga.Sdk" Version="0.10.4" />
   </ItemGroup>
 
   <ItemGroup>

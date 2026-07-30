@@ -1,0 +1,19 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0.302 AS build
+WORKDIR /src
+
+COPY ["global.json", "."]
+COPY ["Directory.Build.props", "."]
+COPY ["BannedSymbols.txt", "."]
+COPY [".editorconfig", "."]
+COPY ["src/symphony-test-1.OpenFgaProvisioning/symphony-test-1.OpenFgaProvisioning.csproj", "src/symphony-test-1.OpenFgaProvisioning/"]
+COPY ["src/symphony-test-1.OpenFgaProvisioning/packages.lock.json", "src/symphony-test-1.OpenFgaProvisioning/"]
+RUN dotnet restore "src/symphony-test-1.OpenFgaProvisioning/symphony-test-1.OpenFgaProvisioning.csproj" --locked-mode
+
+COPY . .
+WORKDIR "/src/src/symphony-test-1.OpenFgaProvisioning"
+RUN dotnet publish "symphony-test-1.OpenFgaProvisioning.csproj" -c Release -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0.10 AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "SymphonyTest1.OpenFgaProvisioning.dll"]

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
+using SymphonyTest1.Api.Infrastructure.Authorization;
 using Testcontainers.PostgreSql;
 
 namespace SymphonyTest1.IntegrationTests.Infrastructure;
@@ -32,6 +33,8 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<NpgsqlDataSource>();
             services.AddSingleton(_ => NpgsqlDataSource.Create(_dbContainer.GetConnectionString()));
+            services.RemoveAll<IOpenFgaAuthorization>();
+            services.AddSingleton<IOpenFgaAuthorization, AllowAllOpenFgaAuthorization>();
             services.AddSingleton(new TestAuthenticationState(_authenticated));
             services
                 .AddAuthentication(options =>
@@ -101,5 +104,30 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>
     public async Task StopAsync()
     {
         await _dbContainer.DisposeAsync();
+    }
+
+    private sealed class AllowAllOpenFgaAuthorization : IOpenFgaAuthorization
+    {
+        public Task<bool> IsAllowedAsync(
+            System.Security.Claims.ClaimsPrincipal user,
+            string relation,
+            string @object,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(true);
+
+        public Task WriteTupleAsync(
+            string user,
+            string relation,
+            string @object,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task DeleteTupleAsync(
+            string user,
+            string relation,
+            string @object,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
     }
 }

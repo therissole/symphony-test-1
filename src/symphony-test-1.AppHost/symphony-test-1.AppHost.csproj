@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\symphony-test-1.Api\symphony-test-1.Api.csproj" />
     <ProjectReference Include="..\symphony-test-1.DatabaseMigrations\symphony-test-1.DatabaseMigrations.csproj" />
+    <ProjectReference Include="..\symphony-test-1.OpenFgaProvisioning\symphony-test-1.OpenFgaProvisioning.csproj" />
     <ProjectReference Include="..\symphony-test-1.Gateway\symphony-test-1.Gateway.csproj" />
     <ProjectReference Include="..\symphony-test-1.Web\symphony-test-1.Web.csproj" />
   </ItemGroup>

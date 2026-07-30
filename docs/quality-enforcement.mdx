@@ -72,6 +72,7 @@ Run the same deterministic gate used by CI:
 dotnet restore symphony-test-1.slnx --locked-mode
 dotnet build symphony-test-1.slnx --configuration Release --no-restore
 pwsh tools/lint-openapi.ps1 src/symphony-test-1.Api/obj/openapi/symphony-test-1.json
+pwsh tools/test-openfga-model.ps1
 dotnet format symphony-test-1.slnx style --verify-no-changes --no-restore
 dotnet test symphony-test-1.slnx --configuration Release --no-build --no-restore
 dotnet list symphony-test-1.slnx package --vulnerable --include-transitive --no-restore
@@ -80,3 +81,10 @@ dotnet list symphony-test-1.slnx package --vulnerable --include-transitive --no-
 Docker must be available for integration, end-to-end, and acceptance tests. CI additionally runs
 the CodeQL `security-extended` query suite. These gates make agent review additive: an agent can
 suggest a new rule, but it cannot waive an existing one.
+
+## Authorization model checks
+
+`tools/test-openfga-model.ps1` runs the pinned OpenFGA CLI in a container. It first validates
+`openfga/authorization-model.fga`, verifies that its generated JSON representation is current, then
+executes the representative authorization assertions in `openfga/authorization-model.tests.fga.yaml`.
+The command is a CI gate and requires Docker; it does not need an OpenFGA server or application deployment.

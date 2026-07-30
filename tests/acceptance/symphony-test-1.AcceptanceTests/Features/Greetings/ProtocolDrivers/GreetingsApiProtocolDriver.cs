@@ -5,8 +5,10 @@ using AcceptanceTests.Features.Greetings.Dsl;
 namespace AcceptanceTests.Features.Greetings.ProtocolDrivers;
 
 internal sealed class GreetingsApiProtocolDriver(ApiTransport api)
-    : ICreateGreetingProtocolDriver, IListGreetingsProtocolDriver
+    : ICreateGreetingAuthorizationProtocolDriver, IDeleteGreetingAuthorizationProtocolDriver, IListGreetingsProtocolDriver
 {
+    private const string DeleteGreetingDeniedMessage = "You do not have permission to delete this greeting.";
+    private ApiResponse? _deleteGreetingAttempt;
     public async Task<SupportedLanguage> CreateLanguageEntryAsync(string name, string code, CancellationToken ct)
     {
         var result = await api.SendAsync<Language>(
@@ -17,6 +19,52 @@ internal sealed class GreetingsApiProtocolDriver(ApiTransport api)
     public Task CreateGreetingAsync(SupportedLanguage language, string text, bool formal, CancellationToken ct) =>
         api.SendAsync<object>(HttpMethod.Post, "api/greetings",
             new { languageId = language.Id, greetingText = text, formal }, HttpStatusCode.Created, ct);
+
+    public Task CreateGreetingShouldBeForbiddenAsync(SupportedLanguage language, string text, bool formal, CancellationToken ct) =>
+        api.SendAsync<object>(HttpMethod.Post, "api/greetings",
+            new { languageId = language.Id, greetingText = text, formal }, HttpStatusCode.Forbidden, ct);
+
+    public async Task<ManagedGreeting> CreateGreetingForDeletionAsync(
+        SupportedLanguage language,
+        string text,
+        bool formal,
+        CancellationToken ct)
+    {
+        var greeting = await api.SendAsync<Greeting>(HttpMethod.Post, "api/greetings",
+            new { languageId = language.Id, greetingText = text, formal }, HttpStatusCode.Created, ct);
+        return new ManagedGreeting(greeting!.Id, greeting.GreetingText, greeting.Formal);
+    }
+
+    public Task DeleteGreetingAsync(ManagedGreeting greeting, CancellationToken ct) =>
+        api.SendAsync<object>(HttpMethod.Delete, $"api/greetings/{greeting.Id ?? throw new AssertionException("A greeting identifier is required.")}", null, HttpStatusCode.NoContent, ct);
+
+    public async Task AttemptToDeleteGreetingAsync(ManagedGreeting greeting, CancellationToken ct) =>
+        _deleteGreetingAttempt = await api.SendForResponseAsync(
+            HttpMethod.Delete,
+            $"api/greetings/{greeting.Id ?? throw new AssertionException("A greeting identifier is required.")}",
+            null,
+            ct);
+
+    public Task DeletionShouldBeDeniedAsync(CancellationToken ct)
+    {
+        var response = _deleteGreetingAttempt ?? throw new AssertionException("The deletion has not been attempted.");
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+            Assert.That(response.Body, Does.Contain(DeleteGreetingDeniedMessage));
+        });
+        return Task.CompletedTask;
+    }
+
+    public async Task<bool> IsGreetingVisibleAsync(
+        SupportedLanguage language,
+        ManagedGreeting greeting,
+        CancellationToken ct)
+    {
+        var items = await api.SendAsync<List<Greeting>>(
+            HttpMethod.Get, $"api/greetings?languageId={language.Id}", null, HttpStatusCode.OK, ct) ?? [];
+        return items.Any(item => item.GreetingText == greeting.Text && item.Formal == greeting.Formal);
+    }
 
     public async Task<bool> IsVisibleAsync(SupportedLanguage language, IntroducedGreeting greeting, CancellationToken ct)
     {
@@ -64,5 +112,5 @@ internal sealed class GreetingsApiProtocolDriver(ApiTransport api)
     public ValueTask DisposeAsync() => api.DisposeAsync();
 
     private sealed record Language(Guid Id, string Name, string Code);
-    private sealed record Greeting(string GreetingText, bool Formal);
+    private sealed record Greeting(Guid Id, string GreetingText, bool Formal);
 }

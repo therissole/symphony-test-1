@@ -1,11 +1,14 @@
 using Dapper;
 
+using System.Security.Claims;
+
 using FluentValidation;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 
 using Npgsql;
 
+using SymphonyTest1.Api.Infrastructure.Authorization;
 using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
@@ -61,18 +64,35 @@ public static partial class CreateGreeting
             .WithDescription("Adds a greeting for an existing language.")
             .Produces<Response>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden)
             .ProducesValidationProblem();
     }
 
-    private static async Task<Results<Created<Response>, ValidationProblem>> Handle(
+    /// <summary>
+    /// Authorizes greeting creation, validates the request, then persists and returns the new greeting.
+    /// </summary>
+    private static async Task<Results<Created<Response>, ValidationProblem, ForbidHttpResult>> Handle(
         Request request,
         IValidator<Request> validator,
+        ClaimsPrincipal user,
+        IOpenFgaAuthorization authorization,
         NpgsqlDataSource dataSource,
         TimeProvider timeProvider,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger(typeof(CreateGreeting).FullName!);
+        var canCreateGreeting = await authorization.IsAllowedAsync(
+            user,
+            relation: "can_create_greeting",
+            @object: "system:global",
+            cancellationToken);
+        if (!canCreateGreeting)
+        {
+            LogGreetingCreationForbidden(logger);
+            return TypedResults.Forbid();
+        }
+
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
@@ -92,6 +112,7 @@ public static partial class CreateGreeting
             """;
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         var command = new CommandDefinition(
             sql,
             new
@@ -101,12 +122,19 @@ public static partial class CreateGreeting
                 request.Formal,
                 Now = timeProvider.GetUtcNow()
             },
+            transaction: transaction,
             cancellationToken: cancellationToken);
 
         try
         {
             var databaseGreeting = await connection.QuerySingleAsync<DatabaseResponse>(command);
             var greeting = ToResponse(databaseGreeting);
+            await authorization.WriteTupleAsync(
+                user: "system:global",
+                relation: "system",
+                @object: $"greeting:{greeting.Id}",
+                cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
             LogGreetingCreated(logger, greeting.Id, greeting.LanguageId);
 
             return TypedResults.Created($"/api/greetings/{greeting.Id}", greeting);
@@ -146,4 +174,10 @@ public static partial class CreateGreeting
         ILogger logger,
         GreetingId greetingId,
         LanguageId languageId);
+
+    [LoggerMessage(
+        EventId = 2002,
+        Level = LogLevel.Information,
+        Message = "Greeting creation was forbidden by OpenFGA")]
+    private static partial void LogGreetingCreationForbidden(ILogger logger);
 }

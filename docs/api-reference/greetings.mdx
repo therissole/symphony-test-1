@@ -100,6 +100,7 @@ curl -X POST http://localhost:8081/api/greetings \
 
 - `201 Created` — created greeting; `Location` identifies its GET resource
 - `400 Bad Request` — validation problem, including a missing referenced language
+- `403 Forbidden` — authenticated user lacks `can_create_greeting`
 
 ## PUT /api/greetings/{id}
 
@@ -116,6 +117,7 @@ Replaces `languageId`, `greetingText`, and `formal` using the same validation ru
 **Responses**
 
 - `204 No Content` — greeting deleted
+- `403 Forbidden` — authenticated user lacks `can_delete` for the greeting
 - `404 Not Found` — greeting does not exist
 
 ## Missing language error

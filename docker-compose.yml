@@ -47,6 +47,60 @@ services:
       retries: 20
       start_period: 45s
 
+  openfga-database:
+    image: postgres:18-alpine
+    environment:
+      PGPASSWORD: postgres
+    command:
+      - sh
+      - -c
+      - >-
+        until pg_isready --host postgres --username postgres; do sleep 1; done;
+        psql --host postgres --username postgres --tuples-only --no-align
+        --command "SELECT 1 FROM pg_database WHERE datname = 'openfga'"
+        | grep -q 1
+        || psql --host postgres --username postgres --command "CREATE DATABASE openfga";
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  openfga-migrate:
+    image: openfga/openfga:v1.18.1
+    command: migrate
+    environment:
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: "postgres://postgres:postgres@postgres:5432/openfga?sslmode=disable"
+    depends_on:
+      openfga-database:
+        condition: service_completed_successfully
+
+  openfga:
+    image: openfga/openfga:v1.18.1
+    command: run
+    environment:
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: "postgres://postgres:postgres@postgres:5432/openfga?sslmode=disable"
+      OPENFGA_PLAYGROUND_ENABLED: "false"
+    ports:
+      - "${SYMPHONY_OPENFGA_PORT:-8082}:8080"
+    depends_on:
+      openfga-migrate:
+        condition: service_completed_successfully
+
+  openfga-provisioning:
+    build:
+      context: .
+      dockerfile: Dockerfile.OpenFgaProvisioning
+    restart: on-failure:10
+    environment:
+      OpenFga__ApiUrl: "http://openfga:8080"
+      OpenFga__StoreName: "administration-authorization"
+      OpenFga__BootstrapSuperuserSubjects: "b612a21b-b2e7-4a97-a2b7-5c3d77d0342c,f5a0f69c-8cc7-4f68-9b45-6ff5b6f8b730"
+      OpenFga__BootstrapStandardUserSubjects: "907718f8-0d56-421e-8a45-aac8d9679075"
+    depends_on:
+      openfga:
+        condition: service_started
+
   api:
     build:
       context: .
@@ -59,6 +113,8 @@ services:
       Authentication__MetadataAddress: "http://keycloak:8080/realms/symphony/.well-known/openid-configuration"
       Authentication__Audience: "symphony-api"
       Authentication__RequireHttpsMetadata: "false"
+      OpenFga__ApiUrl: "http://openfga:8080"
+      OpenFga__StoreName: "administration-authorization"
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,6 +122,10 @@ services:
         condition: service_completed_successfully
       keycloak:
         condition: service_healthy
+      openfga:
+        condition: service_started
+      openfga-provisioning:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
       interval: 30s

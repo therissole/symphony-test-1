@@ -1,0 +1,154 @@
+name: Authorization model tests
+model_file: authorization-model.fga
+
+tuples:
+  - user: user:system-administrator
+    relation: superuser
+    object: system:global
+  - user: user:standard-user
+    relation: standard_user
+    object: system:global
+  - user: system:global
+    relation: system
+    object: language:english
+  - user: system:global
+    relation: system
+    object: language:french
+  - user: system:global
+    relation: system
+    object: greeting:hello
+  - user: system:global
+    relation: system
+    object: greeting:bonjour
+
+tests:
+  - name: Superuser has every current feature permission
+    check:
+      - user: user:system-administrator
+        object: system:global
+        assertions:
+          can_create_language: true
+          can_create_greeting: true
+      - user: user:system-administrator
+        object: language:english
+        assertions:
+          can_view: true
+          can_update: true
+          can_delete: true
+      - user: user:system-administrator
+        object: greeting:hello
+        assertions:
+          can_view: true
+          can_update: true
+          can_delete: true
+
+  - name: Standard users have global read-only access
+    check:
+      - user: user:standard-user
+        object: system:global
+        assertions:
+          can_create_language: false
+          can_create_greeting: false
+      - user: user:standard-user
+        object: language:english
+        assertions:
+          can_view: true
+          can_update: false
+          can_delete: false
+      - user: user:standard-user
+        object: greeting:hello
+        assertions:
+          can_view: true
+          can_update: false
+          can_delete: false
+
+  - name: Users without a relationship have no access
+    check:
+      - user: user:unassigned
+        object: system:global
+        assertions:
+          can_create_language: false
+          can_create_greeting: false
+      - user: user:unassigned
+        object: language:english
+        assertions:
+          can_view: false
+          can_update: false
+          can_delete: false
+      - user: user:unassigned
+        object: greeting:hello
+        assertions:
+          can_view: false
+          can_update: false
+          can_delete: false
+
+  - name: Superuser access is limited to related resources
+    check:
+      - user: user:system-administrator
+        object: language:unrelated
+        assertions:
+          can_view: false
+          can_update: false
+          can_delete: false
+      - user: user:system-administrator
+        object: greeting:unrelated
+        assertions:
+          can_view: false
+          can_update: false
+          can_delete: false
+
+  - name: List permissions return only related resources
+    list_objects:
+      - user: user:system-administrator
+        type: language
+        assertions:
+          can_view:
+            - language:english
+            - language:french
+      - user: user:system-administrator
+        type: greeting
+        assertions:
+          can_view:
+            - greeting:bonjour
+            - greeting:hello
+      - user: user:unassigned
+        type: language
+        assertions:
+          can_view: []
+      - user: user:standard-user
+        type: language
+        assertions:
+          can_view:
+            - language:english
+            - language:french
+      - user: user:standard-user
+        type: greeting
+        assertions:
+          can_view:
+            - greeting:bonjour
+            - greeting:hello
+
+  - name: List users identifies the superuser
+    list_users:
+      - object: language:english
+        user_filter:
+          - type: user
+        assertions:
+          can_update:
+            users:
+              - user:system-administrator
+          can_view:
+            users:
+              - user:standard-user
+              - user:system-administrator
+      - object: greeting:hello
+        user_filter:
+          - type: user
+        assertions:
+          can_delete:
+            users:
+              - user:system-administrator
+          can_view:
+            users:
+              - user:standard-user
+              - user:system-administrator
