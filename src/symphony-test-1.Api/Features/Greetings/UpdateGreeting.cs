@@ -1,13 +1,10 @@
 using System.ComponentModel;
-
+using System.Security.Claims;
 using Dapper;
-
 using FluentValidation;
-
 using Microsoft.AspNetCore.Http.HttpResults;
-
 using Npgsql;
-
+using SymphonyTest1.Api.Infrastructure.Authorization;
 using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
@@ -64,24 +61,65 @@ public static partial class UpdateGreeting
                 "Replaces the language, text, and formality of an existing greeting.")
             .Produces<Response>()
             .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status404NotFound);
     }
 
-    private static async Task<Results<Ok<Response>, ValidationProblem, NotFound>> Handle(
+    private static async Task<Results<Ok<Response>, ValidationProblem, NotFound, ProblemHttpResult>> Handle(
         [Description("The unique greeting identifier.")] GreetingId id,
         Request request,
         IValidator<Request> validator,
+        ClaimsPrincipal user,
+        IOpenFgaAuthorization authorization,
         NpgsqlDataSource dataSource,
         TimeProvider timeProvider,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger(typeof(UpdateGreeting).FullName!);
+        var canManageCatalog = await authorization.IsAllowedAsync(
+            user,
+            relation: "can_manage_catalog",
+            @object: "system:global",
+            cancellationToken);
+        if (!canManageCatalog)
+        {
+            LogGreetingUpdateForbidden(logger, id);
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden",
+                detail: "You do not have permission to update this greeting.");
+        }
+
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             return TypedResults.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        var exists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT EXISTS (SELECT 1 FROM greetings WHERE id = @Id)",
+            new { Id = id },
+            cancellationToken: cancellationToken));
+        if (!exists)
+        {
+            return TypedResults.NotFound();
+        }
+
+        var canUpdateGreeting = await authorization.IsAllowedAsync(
+            user,
+            relation: "can_update",
+            @object: $"greeting:{id}",
+            cancellationToken);
+        if (!canUpdateGreeting)
+        {
+            LogGreetingUpdateForbidden(logger, id);
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden",
+                detail: "You do not have permission to update this greeting.");
         }
 
         const string sql = """
@@ -101,7 +139,6 @@ public static partial class UpdateGreeting
                 updated_at AS UpdatedAt
             """;
 
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var command = new CommandDefinition(
             sql,
             new
@@ -159,4 +196,10 @@ public static partial class UpdateGreeting
         Level = LogLevel.Information,
         Message = "Updated greeting {GreetingId}")]
     private static partial void LogGreetingUpdated(ILogger logger, GreetingId greetingId);
+
+    [LoggerMessage(
+        EventId = 2005,
+        Level = LogLevel.Information,
+        Message = "Greeting update was forbidden by OpenFGA for greeting {GreetingId}")]
+    private static partial void LogGreetingUpdateForbidden(ILogger logger, GreetingId greetingId);
 }

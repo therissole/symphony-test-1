@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\symphony-test-1.Api\symphony-test-1.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\symphony-test-1.OpenFgaProvisioning\symphony-test-1.OpenFgaProvisioning.csproj" />
     <ProjectReference Include="..\..\..\src\symphony-test-1.Web\symphony-test-1.Web.csproj" />
     <ProjectReference Include="..\..\..\tools\SymphonyTest1.Analyzers\SymphonyTest1.Analyzers.csproj" />
   </ItemGroup>

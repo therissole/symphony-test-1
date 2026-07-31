@@ -1,3 +1,4 @@
+using Dapper;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -27,14 +28,25 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>
         _authenticated = authenticated;
     }
 
+    internal string ConnectionString => _dbContainer.GetConnectionString();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        var solutionRoot = FindSolutionRoot(Directory.GetCurrentDirectory())
+            ?? FindSolutionRoot(AppContext.BaseDirectory)
+            ?? throw new InvalidOperationException("Could not find solution root directory.");
+        builder.UseContentRoot(Path.Combine(
+            solutionRoot,
+            "src",
+            "symphony-test-1.Api"));
+
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<NpgsqlDataSource>();
             services.AddSingleton(_ => NpgsqlDataSource.Create(_dbContainer.GetConnectionString()));
             services.RemoveAll<IOpenFgaAuthorization>();
-            services.AddSingleton<IOpenFgaAuthorization, AllowAllOpenFgaAuthorization>();
+            services.AddSingleton<IOpenFgaAuthorization>(serviceProvider =>
+                new AllowAllOpenFgaAuthorization(serviceProvider.GetRequiredService<NpgsqlDataSource>()));
             services.AddSingleton(new TestAuthenticationState(_authenticated));
             services
                 .AddAuthentication(options =>
@@ -108,6 +120,10 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>
 
     private sealed class AllowAllOpenFgaAuthorization : IOpenFgaAuthorization
     {
+        private readonly NpgsqlDataSource _dataSource;
+
+        public AllowAllOpenFgaAuthorization(NpgsqlDataSource dataSource) => _dataSource = dataSource;
+
         public Task<bool> IsAllowedAsync(
             System.Security.Claims.ClaimsPrincipal user,
             string relation,
@@ -128,6 +144,25 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>
             string @object,
             CancellationToken cancellationToken) =>
             Task.CompletedTask;
+
+        public async Task<IReadOnlyList<string>> ListObjectsAsync(
+            System.Security.Claims.ClaimsPrincipal user,
+            string relation,
+            string type,
+            CancellationToken cancellationToken)
+        {
+            var sql = type switch
+            {
+                "language" => "SELECT id FROM languages",
+                "greeting" => "SELECT id FROM greetings",
+                _ => throw new ArgumentOutOfRangeException(nameof(type))
+            };
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            var ids = await connection.QueryAsync<Guid>(new CommandDefinition(
+                sql,
+                cancellationToken: cancellationToken));
+            return ids.Select(id => $"{type}:{id}").ToArray();
+        }
 
     }
 }

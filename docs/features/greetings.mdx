@@ -55,11 +55,17 @@ limited to 255 characters. A missing language returns a validation problem keyed
 Create and update define a nested FluentValidation `RequestValidator` and invoke it asynchronously
 before database I/O.
 
-`CreateGreeting` checks `system:global#can_create_greeting` in OpenFGA before it writes. On a
-successful create, it writes the `greeting:<id>#system@system:global` tuple so resource-level
-permissions can be evaluated. `DeleteGreeting` checks `greeting:<id>#can_delete` before database
-I/O. The bootstrap superuser can create and delete greetings; standard users receive `403
-Forbidden` with a public denial message.
+`CreateGreeting` checks `system:global#can_create_greeting` before validation. Read slices first
+check `system:global#can_read_catalog`, then use `can_view` object checks or streamed object search.
+Update and delete first check `system:global#can_manage_catalog`, so a standard user's request is
+denied before validation or database I/O. An authorized manager then follows normal validation and
+not-found handling before the resource-level `can_update` or `can_delete` check.
+
+A successful create commits a durable outbox intent for the
+`greeting:<id>#system@system:global` tuple with the greeting row. Delete commits the inverse intent
+with the row deletion. Synchronous dispatch and background replay keep PostgreSQL and OpenFGA
+convergent. The bootstrap superuser has full control; standard users receive all related greetings
+as read-only records and receive `403 Forbidden` with a public denial message for writes.
 
 Commands use PostgreSQL `RETURNING` for atomic responses. Every database call carries the HTTP
 request cancellation token.
@@ -82,8 +88,10 @@ Integration tests cover list filters, get/not-found, formality filtering, create
 missing-language validation, and delete/not-found. LightBDD acceptance tests sit in request-level
 acceptance slices, defaulting to both API and browser protocol drivers without sharing application
 types. The date-range scenario is deliberately API-only because it exercises the public,
-test-environment clock contract; the create-greeting authorization scenarios are API-only because
-they prove two separate authenticated identities against the API security boundary.
+test-environment clock contract. `GetGreetingByLanguage` is also API-only because the browser has
+no corresponding user workflow. All other authorization scenarios run through both the API and
+browser drivers, including the public denial message and unchanged-state behaviour for rejected
+writes.
 
 See the [Greetings API reference](/api-reference/endpoints/greetings/list-greetings) for exact
 contracts, status codes, and an interactive request playground.

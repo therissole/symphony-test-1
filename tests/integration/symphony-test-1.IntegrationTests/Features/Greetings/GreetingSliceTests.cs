@@ -91,6 +91,18 @@ public class GreetingSliceTests
     }
 
     [Test]
+    public async Task ListGreetings_WithInvalidCreationRange_ReturnsValidationProblem()
+    {
+        var instant = new DateTimeOffset(2026, 7, 26, 9, 0, 0, TimeSpan.Zero);
+        var response = await _client.GetAsync(
+            $"/api/greetings?createdFrom={Uri.EscapeDataString(instant.ToString("O"))}&createdTo={Uri.EscapeDataString(instant.ToString("O"))}");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
+        Assert.That(problem?.Errors, Does.ContainKey("createdTo"));
+    }
+
+    [Test]
     public async Task GetGreeting_WhenGreetingDoesNotExist_ReturnsNotFound()
     {
         var response = await _client.GetAsync($"/api/greetings/{Guid.NewGuid()}");

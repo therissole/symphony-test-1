@@ -4,12 +4,13 @@ using Microsoft.Playwright;
 namespace AcceptanceTests.Core;
 
 /// <summary>
-/// Owns one authenticated browser session for a scenario, leaving feature navigation and selectors to feature drivers.
+/// Owns one browser session for a scenario and, unless created as anonymous, signs it in through the deployed identity provider.
 /// </summary>
 internal sealed class BrowserTransport(
     AcceptanceOptions options,
     string? userName = null,
-    string? password = null) : IAsyncDisposable
+    string? password = null,
+    bool authenticate = true) : IAsyncDisposable
 {
     private IPlaywright? _playwright;
     private IBrowser? _browser;
@@ -26,6 +27,11 @@ internal sealed class BrowserTransport(
         _playwright = await Playwright.CreateAsync();
         _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
         _page = await _browser.NewPageAsync();
+        if (!authenticate)
+        {
+            return _page;
+        }
+
         var returnUrl = Uri.EscapeDataString(options.BaseUri.ToString());
         // Authenticate through the deployed OIDC flow; browser acceptance tests do not inject a token.
         await _page.GotoAsync(new Uri(options.BaseUri, $"authentication/login?returnUrl={returnUrl}").ToString());
@@ -35,6 +41,9 @@ internal sealed class BrowserTransport(
         await _page.GetByTestId("dashboard").WaitForAsync();
         return _page;
     }
+
+    public static BrowserTransport Anonymous(AcceptanceOptions options) =>
+        new(options, authenticate: false);
 
     public async ValueTask DisposeAsync()
     {

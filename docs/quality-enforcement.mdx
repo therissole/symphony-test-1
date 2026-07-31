@@ -55,7 +55,11 @@ integration tests require identifier parameters and schemas to remain `string`/`
 
 NUnit architecture tests protect dependency direction, slice ownership, feature neutrality, and
 authentication boundaries. They complement Roslyn: semantic compiler rules live in the analyzer,
-while whole-repository relationships live in tests.
+while whole-repository relationships live in tests. Acceptance architecture checks require a
+matching request-level fixture for every Languages and Greetings slice, enforce the
+`AcceptanceTests` / `Dsl` / `ProtocolDrivers` capability layout, keep protocol mechanics out of
+fixtures and DSLs, reject generic authorization fixtures and drivers, and require exactly one
+`When` action in every scenario.
 
 The API emits OpenAPI 3.1 during the Release build. `tools/lint-openapi.ps1` checks that generated
 artifact without starting the application or downloading another package. It requires:

@@ -1,11 +1,9 @@
 using System.ComponentModel;
-
+using System.Security.Claims;
 using Dapper;
-
 using Microsoft.AspNetCore.Http.HttpResults;
-
 using Npgsql;
-
+using SymphonyTest1.Api.Infrastructure.Authorization;
 using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
@@ -34,14 +32,30 @@ public static class GetLanguage
             .WithDescription("Returns a language from the catalog by its unique identifier.")
             .Produces<Response>()
             .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .Produces(StatusCodes.Status404NotFound);
     }
 
-    private static async Task<Results<Ok<Response>, NotFound>> Handle(
+    private static async Task<Results<Ok<Response>, NotFound, ProblemHttpResult>> Handle(
         [Description("The unique language identifier.")] LanguageId id,
+        ClaimsPrincipal user,
+        IOpenFgaAuthorization authorization,
         NpgsqlDataSource dataSource,
         CancellationToken cancellationToken)
     {
+        var canReadCatalog = await authorization.IsAllowedAsync(
+            user,
+            relation: "can_read_catalog",
+            @object: "system:global",
+            cancellationToken);
+        if (!canReadCatalog)
+        {
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden",
+                detail: "You do not have permission to view this language.");
+        }
+
         const string sql = """
             SELECT
                 id,
@@ -56,10 +70,24 @@ public static class GetLanguage
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var command = new CommandDefinition(sql, new { Id = id }, cancellationToken: cancellationToken);
         var databaseLanguage = await connection.QuerySingleOrDefaultAsync<DatabaseResponse>(command);
+        if (databaseLanguage is null)
+        {
+            return TypedResults.NotFound();
+        }
 
-        return databaseLanguage is null
-            ? TypedResults.NotFound()
-            : TypedResults.Ok(ToResponse(databaseLanguage));
+        var canViewLanguage = await authorization.IsAllowedAsync(
+            user,
+            relation: "can_view",
+            @object: $"language:{id}",
+            cancellationToken);
+        if (!canViewLanguage)
+        {
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden",
+                detail: "You do not have permission to view this language.");
+        }
+        return TypedResults.Ok(ToResponse(databaseLanguage));
     }
 
     private sealed record DatabaseResponse(LanguageId Id, string Name, string Code, DateTime CreatedAt, DateTime UpdatedAt);

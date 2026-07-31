@@ -263,9 +263,12 @@ pwsh tests/acceptance/run.ps1
 ```
 
 The acceptance project has no production-project references. Its generic core contains only
-scenario, protocol-matrix, and transport mechanics; each request-level feature directory owns its
-DSL and protocol drivers. It receives deployment details through environment variables, so the same
-tests can run against another implementation of the public API.
+scenario, protocol-matrix, and transport mechanics. Each capability keeps request-level fixtures
+under `AcceptanceTests/` and shares only that capability's business DSL and API/browser protocol
+drivers through its `Dsl/` and `ProtocolDrivers/` folders. It receives deployment details through
+environment variables, so the same tests can run against another implementation of the public API.
+The runner assigns independently configurable gateway, Keycloak, PostgreSQL, and OpenFGA host ports
+and restores every pre-existing environment value after the disposable deployment is removed.
 
 ## Design choices
 
@@ -288,11 +291,17 @@ tests can run against another implementation of the public API.
 - **Defense in depth:** route authorization prevents anonymous navigation in the client, while
   the API independently validates issuer, audience, signature, and token lifetime. Client-side
   visibility is never treated as the security boundary.
-- **OpenFGA preparation:** OpenFGA runs against its own database in the shared PostgreSQL
-  instance. Aspire and Compose run a one-shot provisioner that reuses the named store and only
-  publishes a model version when the committed model changes, then idempotently applies local
-  bootstrap role tuples. `CreateGreeting` now checks `can_create_greeting`; the versioned model,
-  generated API representation, and CLI assertions are verified in CI.
+- **OpenFGA authorization:** OpenFGA runs against its own database in the shared PostgreSQL
+  instance. Every Languages and Greetings slice enforces the versioned model: superusers can read
+  and manage the catalog, standard users have read-only access, and anonymous callers cannot enter
+  the administration API. Catalog searches use streamed `ListObjects` results to filter SQL,
+  while creates and deletes commit tuple intent with the business row in a transactional outbox,
+  dispatch before returning success, and recover idempotently after interruption. Aspire and
+  Compose run a one-shot provisioner that reuses the named store, publishes only changed models,
+  reconciles the configured direct bootstrap roles as an authoritative set, and applies resource
+  tuples. The readable model, generated API
+  representation, CLI assertions, and request-level API/browser acceptance specifications are
+  verified in CI.
 - **Local realm only:** Aspire imports the committed realm for development. Production deployments
   must provide a managed Keycloak instance, HTTPS authority, and exact environment-specific client
   redirect and logout URIs. The disposable local realm's wildcard redirects and web origins exist

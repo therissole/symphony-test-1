@@ -18,6 +18,8 @@ public sealed class DeleteGreetingAcceptanceTests : FeatureFixture
     private IDeleteGreetingAuthorizationProtocolDriver _superuserDriver = null!;
     private IDeleteGreetingAuthorizationProtocolDriver _standardUserDriver = null!;
     private GreetingDeletionAuthorizationDsl _dsl = null!;
+    private IDeleteGreetingAuthenticationProtocolDriver _unauthenticatedDriver = null!;
+    private DeleteGreetingAuthenticationDsl _authenticationDsl = null!;
 
     [SetUp]
     public void SetUp()
@@ -31,8 +33,12 @@ public sealed class DeleteGreetingAcceptanceTests : FeatureFixture
         _standardUserDriver = protocol == AcceptanceProtocol.Api
             ? new GreetingsApiProtocolDriver(new ApiTransport(options, options.StandardUserName, options.StandardUserPassword))
             : new GreetingsWebProtocolDriver(new BrowserTransport(options, options.StandardUserName, options.StandardUserPassword));
+        _unauthenticatedDriver = protocol == AcceptanceProtocol.Api
+            ? new GreetingsApiProtocolDriver(ApiTransport.Anonymous(options))
+            : new GreetingsWebProtocolDriver(BrowserTransport.Anonymous(options), options.BaseUri);
         _dsl = new GreetingDeletionAuthorizationDsl(
             _scenario, _superuserDriver, _standardUserDriver);
+        _authenticationDsl = new DeleteGreetingAuthenticationDsl(_unauthenticatedDriver);
     }
 
     [TearDown]
@@ -41,6 +47,7 @@ public sealed class DeleteGreetingAcceptanceTests : FeatureFixture
         await _scenario.DisposeAsync();
         await _superuserDriver.DisposeAsync();
         await _standardUserDriver.DisposeAsync();
+        await _unauthenticatedDriver.DisposeAsync();
     }
 
     /// <summary>Shows that the superuser can remove a greeting.</summary>
@@ -60,6 +67,14 @@ public sealed class DeleteGreetingAcceptanceTests : FeatureFixture
         Then_the_action_is_denied,
         Then_the_greeting_remains_visible);
 
+    /// <summary>Shows that a person must sign in before deleting a greeting.</summary>
+    [Scenario]
+    [TestCaseSource(nameof(Protocols))]
+    public async Task An_unauthenticated_person_cannot_delete_a_greeting(AcceptanceProtocol _) =>
+        await Runner.RunScenarioAsync(
+            When_an_unauthenticated_person_attempts_to_delete_a_greeting,
+            Then_authentication_is_required_and_greeting_deletion_is_unavailable);
+
     private async Task Given_a_greeting_exists()
     {
         await _dsl.LanguageExistsAsync("Deletion Japanese", CancellationToken.None);
@@ -71,4 +86,8 @@ public sealed class DeleteGreetingAcceptanceTests : FeatureFixture
     private Task Then_the_action_is_denied() => _dsl.DeletionShouldBeDeniedAsync(CancellationToken.None);
     private Task Then_the_greeting_is_not_visible() => _dsl.GreetingShouldNotBeVisibleAsync(CancellationToken.None);
     private Task Then_the_greeting_remains_visible() => _dsl.GreetingShouldBeVisibleAsync(CancellationToken.None);
+    private Task When_an_unauthenticated_person_attempts_to_delete_a_greeting() =>
+        _authenticationDsl.UnauthenticatedPersonAttemptsToDeleteGreetingAsync(CancellationToken.None);
+    private Task Then_authentication_is_required_and_greeting_deletion_is_unavailable() =>
+        _authenticationDsl.AuthenticationShouldBeRequiredAndDeletionUnavailableAsync(CancellationToken.None);
 }

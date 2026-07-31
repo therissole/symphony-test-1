@@ -25,11 +25,41 @@ public sealed class AuthenticationBoundaryTests
         await _factory.DisposeAsync();
     }
 
-    [TestCase("/api/languages")]
-    [TestCase("/api/greetings")]
-    public async Task AdministrationApi_WhenAnonymous_ReturnsUnauthorized(string path)
+    private const string ResourceId = "11111111-1111-1111-1111-111111111111";
+
+    public static IEnumerable<TestCaseData> AdministrationRequests
     {
-        var response = await _client.GetAsync(path);
+        get
+        {
+            yield return Request(HttpMethod.Get, "/api/languages");
+            yield return Request(HttpMethod.Get, $"/api/languages/{ResourceId}");
+            yield return Request(HttpMethod.Post, "/api/languages", """{"name":"English","code":"en"}""");
+            yield return Request(HttpMethod.Put, $"/api/languages/{ResourceId}", """{"name":"English","code":"en"}""");
+            yield return Request(HttpMethod.Delete, $"/api/languages/{ResourceId}");
+            yield return Request(HttpMethod.Get, "/api/greetings");
+            yield return Request(HttpMethod.Get, $"/api/greetings/{ResourceId}");
+            yield return Request(HttpMethod.Get, "/api/greetings/by-language/en");
+            yield return Request(HttpMethod.Post, "/api/greetings",
+                $$"""{"languageId":"{{ResourceId}}","greetingText":"Hello","formal":false}""");
+            yield return Request(HttpMethod.Put, $"/api/greetings/{ResourceId}",
+                $$"""{"languageId":"{{ResourceId}}","greetingText":"Hello","formal":false}""");
+            yield return Request(HttpMethod.Delete, $"/api/greetings/{ResourceId}");
+        }
+    }
+
+    [TestCaseSource(nameof(AdministrationRequests))]
+    public async Task AdministrationApi_WhenAnonymous_ReturnsUnauthorized(
+        HttpMethod method,
+        string path,
+        string? json)
+    {
+        using var request = new HttpRequestMessage(method, path);
+        if (json is not null)
+        {
+            request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        }
+
+        using var response = await _client.SendAsync(request);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
     }
@@ -57,4 +87,10 @@ public sealed class AuthenticationBoundaryTests
     }
 
     private sealed record AuthenticationConfiguration(string Authority, string ClientId);
+
+    private static TestCaseData Request(HttpMethod method, string path, string? json = null) =>
+        new(method, path, json)
+        {
+            TestName = $"AdministrationApi_WhenAnonymous_ReturnsUnauthorized({method.Method} {path})"
+        };
 }

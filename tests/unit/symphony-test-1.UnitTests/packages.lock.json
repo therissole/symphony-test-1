@@ -910,6 +910,13 @@
           "OpenTelemetry.Instrumentation.Http": "[1.15.1, )"
         }
       },
+      "SymphonyTest1.OpenFgaProvisioning": {
+        "type": "Project",
+        "dependencies": {
+          "Npgsql": "[10.0.1, )",
+          "OpenFga.Sdk": "[0.10.4, )"
+        }
+      },
       "SymphonyTest1.Web": {
         "type": "Project",
         "dependencies": {

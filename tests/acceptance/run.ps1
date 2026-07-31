@@ -3,7 +3,10 @@ param(
     [int]$GatewayPort = 18081,
     [int]$KeycloakPort = 18180,
     [int]$PostgresPort = 15432,
-    [string]$ProjectName = "acceptance-$PID"
+    [int]$OpenFgaPort = 18082,
+    [string]$ProjectName = "acceptance-$PID",
+    [string]$TestFilter = 'TestCategory=Acceptance',
+    [string]$BlameHangTimeout = '5m'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,11 +15,13 @@ $acceptanceProject = Join-Path $solutionRoot 'tests\acceptance\symphony-test-1.A
 $previousGatewayPort = $env:SYMPHONY_API_PORT
 $previousKeycloakPort = $env:SYMPHONY_KEYCLOAK_PORT
 $previousPostgresPort = $env:SYMPHONY_POSTGRES_PORT
+$previousOpenFgaPort = $env:SYMPHONY_OPENFGA_PORT
 
 try {
     $env:SYMPHONY_API_PORT = $GatewayPort
     $env:SYMPHONY_KEYCLOAK_PORT = $KeycloakPort
     $env:SYMPHONY_POSTGRES_PORT = $PostgresPort
+    $env:SYMPHONY_OPENFGA_PORT = $OpenFgaPort
 
     & docker compose -p $ProjectName -f (Join-Path $solutionRoot 'docker-compose.yml') -f (Join-Path $PSScriptRoot 'docker-compose.acceptance.yml') up --build --detach
     if ($LASTEXITCODE -ne 0) { throw 'The acceptance environment did not start.' }
@@ -55,7 +60,15 @@ try {
     & (Join-Path (Split-Path $acceptanceProject) 'bin\Release\net10.0\playwright.ps1') install chromium
     if ($LASTEXITCODE -ne 0) { throw 'Chromium installation failed.' }
 
-    & dotnet test $acceptanceProject --configuration Release --no-build --no-restore --filter 'TestCategory=Acceptance'
+    & dotnet test $acceptanceProject `
+        --configuration Release `
+        --no-build `
+        --no-restore `
+        --filter $TestFilter `
+        --blame-hang `
+        --blame-hang-timeout $BlameHangTimeout `
+        --logger 'console;verbosity=normal' `
+        --logger 'trx;LogFileName=acceptance-test-results.trx'
     if ($LASTEXITCODE -ne 0) { throw 'Acceptance tests failed.' }
 }
 finally {
@@ -63,4 +76,5 @@ finally {
     $env:SYMPHONY_API_PORT = $previousGatewayPort
     $env:SYMPHONY_KEYCLOAK_PORT = $previousKeycloakPort
     $env:SYMPHONY_POSTGRES_PORT = $previousPostgresPort
+    $env:SYMPHONY_OPENFGA_PORT = $previousOpenFgaPort
 }

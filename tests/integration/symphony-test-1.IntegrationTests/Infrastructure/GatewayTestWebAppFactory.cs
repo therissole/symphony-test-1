@@ -16,6 +16,13 @@ public sealed class GatewayTestWebAppFactory
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        var solutionRoot = FindSolutionRoot(Directory.GetCurrentDirectory())
+            ?? FindSolutionRoot(AppContext.BaseDirectory)
+            ?? throw new InvalidOperationException("Could not find solution root directory.");
+        builder.UseContentRoot(Path.Combine(
+            solutionRoot,
+            "src",
+            "symphony-test-1.Gateway"));
         builder.UseEnvironment("Testing");
         builder.UseStaticWebAssets();
         builder.ConfigureAppConfiguration((_, configuration) =>
@@ -25,5 +32,20 @@ public sealed class GatewayTestWebAppFactory
                 ["Gateway:ApiBaseUrl"] = _apiBaseAddress.AbsoluteUri
             });
         });
+    }
+
+    private static string? FindSolutionRoot(string startDirectory)
+    {
+        for (var directory = new DirectoryInfo(startDirectory);
+             directory is not null;
+             directory = directory.Parent)
+        {
+            if (directory.GetFiles("*.slnx").Length > 0)
+            {
+                return directory.FullName;
+            }
+        }
+
+        return null;
     }
 }

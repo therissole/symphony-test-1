@@ -81,6 +81,7 @@ services:
       OPENFGA_DATASTORE_ENGINE: postgres
       OPENFGA_DATASTORE_URI: "postgres://postgres:postgres@postgres:5432/openfga?sslmode=disable"
       OPENFGA_PLAYGROUND_ENABLED: "false"
+      OPENFGA_LIST_OBJECTS_DEADLINE: "5s"
     ports:
       - "${SYMPHONY_OPENFGA_PORT:-8082}:8080"
     depends_on:
@@ -93,6 +94,7 @@ services:
       dockerfile: Dockerfile.OpenFgaProvisioning
     restart: on-failure:10
     environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=symphony_test_1;Username=postgres;Password=postgres"
       OpenFga__ApiUrl: "http://openfga:8080"
       OpenFga__StoreName: "administration-authorization"
       OpenFga__BootstrapSuperuserSubjects: "b612a21b-b2e7-4a97-a2b7-5c3d77d0342c,f5a0f69c-8cc7-4f68-9b45-6ff5b6f8b730"
@@ -100,6 +102,8 @@ services:
     depends_on:
       openfga:
         condition: service_started
+      migrations:
+        condition: service_completed_successfully
 
   api:
     build:

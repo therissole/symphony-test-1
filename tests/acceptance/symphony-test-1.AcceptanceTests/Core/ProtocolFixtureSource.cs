@@ -21,9 +21,6 @@ internal static class ProtocolTestCaseSource
             ? new[] { AcceptanceProtocol.Api, AcceptanceProtocol.Web }
             : selection;
 
-        return protocols.Select(protocol => new TestCaseData(protocol)
-        {
-            TestName = $"{fixtureType.Name} via {protocol}"
-        });
+        return protocols.Select(protocol => new TestCaseData(protocol));
     }
 }

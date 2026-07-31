@@ -1,11 +1,9 @@
+using System.Security.Claims;
 using Dapper;
-
 using FluentValidation;
-
 using Microsoft.AspNetCore.Http.HttpResults;
-
 using Npgsql;
-
+using SymphonyTest1.Api.Infrastructure.Authorization;
 using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
@@ -59,19 +57,46 @@ public static class ListGreetings
             .WithDescription("Returns every stored greeting, ordered by greeting text.")
             .Produces<List<Response>>()
             .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesValidationProblem();
     }
 
-    private static async Task<Results<Ok<List<Response>>, ValidationProblem>> Handle(
+    private static async Task<Results<Ok<List<Response>>, ValidationProblem, ProblemHttpResult>> Handle(
         [AsParameters] Request request,
         IValidator<Request> validator,
+        ClaimsPrincipal user,
+        IOpenFgaAuthorization authorization,
         NpgsqlDataSource dataSource,
         CancellationToken cancellationToken)
     {
+        var canReadCatalog = await authorization.IsAllowedAsync(
+            user,
+            relation: "can_read_catalog",
+            @object: "system:global",
+            cancellationToken);
+        if (!canReadCatalog)
+        {
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden",
+                detail: "You do not have permission to view greetings.");
+        }
+
+        var objectIds = await authorization.ListObjectsAsync(user, "can_view", "greeting", cancellationToken);
+
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             return TypedResults.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var greetingIds = objectIds
+            .Select(ParseGreetingObject)
+            .OfType<GreetingId>()
+            .ToArray();
+        if (greetingIds.Length == 0)
+        {
+            return TypedResults.Ok<List<Response>>([]);
         }
 
         const string sql = """
@@ -84,6 +109,8 @@ public static class ListGreetings
                 updated_at AS UpdatedAt
             FROM greetings
             WHERE
+                id = ANY(@GreetingIds)
+                AND
                 (@HasLanguageId = FALSE OR language_id = @LanguageId)
                 AND (@Formal IS NULL OR formal = @Formal)
                 AND (CAST(@CreatedFrom AS TIMESTAMPTZ) IS NULL OR created_at >= CAST(@CreatedFrom AS TIMESTAMPTZ))
@@ -96,6 +123,7 @@ public static class ListGreetings
             sql,
             new
             {
+                GreetingIds = greetingIds.Select(greetingId => greetingId.Value).ToArray(),
                 HasLanguageId = request.LanguageId.HasValue,
                 LanguageId = request.LanguageId.GetValueOrDefault(),
                 request.Formal,
@@ -117,6 +145,15 @@ public static class ListGreetings
         bool Formal,
         DateTime CreatedAt,
         DateTime UpdatedAt);
+
+    private static GreetingId? ParseGreetingObject(string value)
+    {
+        const string prefix = "greeting:";
+        return value.StartsWith(prefix, StringComparison.Ordinal)
+            && GreetingId.TryParse(value[prefix.Length..], provider: null, out var greetingId)
+                ? greetingId
+                : null;
+    }
 
     private static Response ToResponse(DatabaseResponse value) =>
         new(

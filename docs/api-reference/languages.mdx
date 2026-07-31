@@ -27,6 +27,7 @@ Returns all languages ordered by name.
 **Responses**
 
 - `200 OK` — array of language responses
+- `403 Forbidden` — authenticated user cannot read the catalog
 
 ```bash
 curl http://localhost:8081/api/languages \
@@ -42,6 +43,7 @@ curl http://localhost:8081/api/languages \
 **Responses**
 
 - `200 OK` — language response
+- `403 Forbidden` — authenticated user cannot read the catalog or related language
 - `404 Not Found` — no language has the supplied ID
 
 ```bash
@@ -70,6 +72,7 @@ curl -X POST http://localhost:8081/api/languages \
 
 - `201 Created` — created language; `Location` identifies its GET resource
 - `400 Bad Request` — RFC 7807 validation problem
+- `403 Forbidden` — authenticated user lacks `can_create_language`
 - `409 Conflict` — name or code already exists
 
 ## PUT /api/languages/{id}
@@ -87,6 +90,7 @@ curl -X PUT http://localhost:8081/api/languages/3fa85f64-5717-4562-b3fc-2c963f66
 
 - `200 OK` — updated language
 - `400 Bad Request` — RFC 7807 validation problem
+- `403 Forbidden` — authenticated user lacks `can_update`
 - `404 Not Found` — language does not exist
 - `409 Conflict` — name or code belongs to another language
 
@@ -97,6 +101,7 @@ Deletes the language. The database cascades the delete to associated greetings.
 **Responses**
 
 - `204 No Content` — language deleted
+- `403 Forbidden` — authenticated user lacks `can_delete`
 - `404 Not Found` — language does not exist
 
 ## Error formats

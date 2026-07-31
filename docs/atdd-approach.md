@@ -15,20 +15,35 @@ folder:
 
 ```text
 Features/
-└── Greetings/
+├── Greetings/
+│   ├── AcceptanceTests/
+│   │   ├── CreateGreetingAcceptanceTests.cs
+│   │   ├── DeleteGreetingAcceptanceTests.cs
+│   │   ├── GetGreetingAcceptanceTests.cs
+│   │   ├── GetGreetingByLanguageAcceptanceTests.cs
+│   │   ├── ListGreetingsAcceptanceTests.cs
+│   │   └── UpdateGreetingAcceptanceTests.cs
+│   ├── Dsl/
+│   │   └── GreetingsDsl.cs
+│   └── ProtocolDrivers/
+│       ├── GreetingsApiProtocolDriver.cs
+│       └── GreetingsWebProtocolDriver.cs
+└── Languages/
     ├── AcceptanceTests/
-    │   ├── CreateGreetingAcceptanceTests.cs
-    │   └── ListGreetingsAcceptanceTests.cs
+    │   ├── CreateLanguageAcceptanceTests.cs
+    │   ├── DeleteLanguageAcceptanceTests.cs
+    │   ├── GetLanguageAcceptanceTests.cs
+    │   ├── ListLanguagesAcceptanceTests.cs
+    │   └── UpdateLanguageAcceptanceTests.cs
     ├── Dsl/
-    │   ├── GreetingsDsl.cs
-    │   └── GreetingsDslTests.cs
+    │   └── LanguagesDsl.cs
     └── ProtocolDrivers/
-        ├── GreetingsApiProtocolDriver.cs
-        └── GreetingsWebProtocolDriver.cs
+        ├── LanguagesApiProtocolDriver.cs
+        └── LanguagesWebProtocolDriver.cs
 ```
 
-`Languages/` follows the same layout as it gains acceptance features. The capability's
-`AcceptanceTests/` folder contains scenario wording. The group DSL owns reusable domain language and test-only representations;
+Each capability's `AcceptanceTests/` folder contains scenario wording. The capability DSL owns
+reusable domain language and test-only representations;
 the API and web drivers own that group's public protocol details. This keeps shared acceptance
 language out of individual request feature folders without making it a cross-capability layer.
 
@@ -37,6 +52,22 @@ details. Thus the test contains no routes, JSON, selectors, database identifiers
 request/response types. The API driver owns HTTP and JSON; the web driver owns browser navigation
 and selectors. Replacing the application stack requires changing a driver only when its public
 protocol differs.
+
+Authorization is an outcome of a request slice, not a separate feature. Role-specific scenarios
+therefore remain in the matching request fixture: create authorization belongs in
+`CreateGreetingAcceptanceTests`, update authorization in `UpdateGreetingAcceptanceTests`, and so
+on. A scenario has one action under test. Setup may use other public requests, but a single `When`
+must not combine list/get or create/update/delete requests. Capability protocol-driver classes may
+implement several narrow request-oriented DSL interfaces; fixtures depend on those interfaces and
+never call transports directly.
+
+Authentication and OpenFGA authorization are distinct boundaries. An anonymous request is rejected
+with `401 Unauthorized` by the shared authentication pipeline before a slice calls OpenFGA.
+Authenticated actors are then checked against the slice's OpenFGA permission, with denied requests
+returning `403 Forbidden`. Every request fixture includes an anonymous scenario: its API driver
+asserts `401`, and its browser driver (when that request has a UI) asserts a redirect to the
+deployed sign-in page with the protected content unavailable. Authentication-boundary integration
+tests independently prove the route-group policy for every administration endpoint.
 
 An acceptance fixture runs against API and web by default. Add
 `[AcceptanceProtocols(AcceptanceProtocol.Api)]` or `Web` only when a scenario deliberately proves
@@ -59,6 +90,7 @@ Application behaviour obtains the current instant from an injected `TimeProvider
 - Acceptance tests prove valuable user behaviour through API and browser protocol drivers.
 - Slice integration tests prove HTTP binding, validation, SQL, constraints, and error mapping.
 - Component and browser tests prove presentation and accessibility behaviour.
-- Architecture tests enforce dependency direction, slice boundaries, and the `TimeProvider` rule.
+- Architecture tests enforce dependency direction, slice boundaries, the anonymous scenario in
+  every request fixture, and the `TimeProvider` rule.
 
 See `docs/architecture.mdx` for the vertical-slice conventions that apply to the production code.

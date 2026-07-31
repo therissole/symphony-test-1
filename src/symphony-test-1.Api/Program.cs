@@ -77,7 +77,9 @@ builder.Services.AddProblemDetails(options =>
     };
 });
 builder.Services.AddApplicationAuthentication(builder.Configuration);
-builder.Services.AddOpenFgaAuthorization();
+var entryAssemblyName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
+var isOpenApiGeneration = entryAssemblyName is "dotnet-getdocument" or "GetDocument.Insider";
+builder.Services.AddOpenFgaAuthorization(enableRecoveryWorker: !isOpenApiGeneration);
 
 var enableClockControl = builder.Configuration.GetValue<bool>("Testing:EnableClockControl");
 if (enableClockControl && builder.Environment.IsProduction())

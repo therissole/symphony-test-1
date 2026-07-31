@@ -10,7 +10,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="SymphonyTest1.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="OpenFga.Sdk" Version="0.10.4" />
+    <PackageReference Include="Npgsql" Version="10.0.1" />
   </ItemGroup>
 
   <ItemGroup>

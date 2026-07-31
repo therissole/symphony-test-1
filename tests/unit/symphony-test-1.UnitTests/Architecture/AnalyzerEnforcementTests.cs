@@ -170,6 +170,31 @@ public sealed class AnalyzerEnforcementTests
         Assert.That(diagnostics, Is.Empty);
     }
 
+    [Test]
+    public async Task Analyzer_RejectsParsingAnEntityIdentifierAsARawGuid()
+    {
+        const string source = """
+            using System;
+
+            namespace SymphonyTest1.Api.Features.Greetings
+            {
+                public static class BadSlice
+                {
+                    public static void Map() { }
+
+                    private static bool ParseObject(string value) =>
+                        Guid.TryParse(value, out _);
+                }
+            }
+            """;
+
+        var diagnostics = await AnalyzeAsync(source, TestFeaturePath);
+
+        Assert.That(
+            diagnostics.Select(diagnostic => diagnostic.Id),
+            Does.Contain(VerticalSliceAnalyzer.TypedIdDiagnosticId));
+    }
+
     private static async Task<ImmutableArray<Diagnostic>> AnalyzeAsync(
         string source,
         string path)

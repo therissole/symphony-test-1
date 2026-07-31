@@ -182,6 +182,18 @@ public sealed class VerticalSliceAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        if (context.ContainingSymbol is { } containingSymbol
+            && IsApiFeature(containingSymbol)
+            && method.ContainingType.ToDisplayString() == "System.Guid"
+            && method.Name is "Parse" or "TryParse")
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                TypedIdRule,
+                invocation.GetLocation(),
+                "parsed entity ID",
+                "LanguageId or GreetingId"));
+        }
+
         if (method.Name == "OpenConnectionAsync"
             && method.ContainingType.Name == "NpgsqlDataSource")
         {

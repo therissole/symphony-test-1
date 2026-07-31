@@ -1,14 +1,11 @@
 using System.ComponentModel;
-
+using System.Security.Claims;
 using Dapper;
-
 using FluentValidation;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-
 using Npgsql;
-
+using SymphonyTest1.Api.Infrastructure.Authorization;
 using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
@@ -64,25 +61,66 @@ public static partial class UpdateLanguage
             .WithDescription("Replaces the name and code of an existing language.")
             .Produces<Response>()
             .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesValidationProblem()
             .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
             .Produces(StatusCodes.Status404NotFound);
     }
 
-    private static async Task<Results<Ok<Response>, ValidationProblem, Conflict<ProblemDetails>, NotFound>> Handle(
+    private static async Task<Results<Ok<Response>, ValidationProblem, Conflict<ProblemDetails>, NotFound, ProblemHttpResult>> Handle(
         [Description("The unique language identifier.")] LanguageId id,
         Request request,
         IValidator<Request> validator,
+        ClaimsPrincipal user,
+        IOpenFgaAuthorization authorization,
         NpgsqlDataSource dataSource,
         TimeProvider timeProvider,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger(typeof(UpdateLanguage).FullName!);
+        var canManageCatalog = await authorization.IsAllowedAsync(
+            user,
+            relation: "can_manage_catalog",
+            @object: "system:global",
+            cancellationToken);
+        if (!canManageCatalog)
+        {
+            LogLanguageUpdateForbidden(logger, id);
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden",
+                detail: "You do not have permission to update this language.");
+        }
+
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             return TypedResults.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        var exists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT EXISTS (SELECT 1 FROM languages WHERE id = @Id)",
+            new { Id = id },
+            cancellationToken: cancellationToken));
+        if (!exists)
+        {
+            return TypedResults.NotFound();
+        }
+
+        var canUpdateLanguage = await authorization.IsAllowedAsync(
+            user,
+            relation: "can_update",
+            @object: $"language:{id}",
+            cancellationToken);
+        if (!canUpdateLanguage)
+        {
+            LogLanguageUpdateForbidden(logger, id);
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden",
+                detail: "You do not have permission to update this language.");
         }
 
         const string sql = """
@@ -100,7 +138,6 @@ public static partial class UpdateLanguage
                 updated_at AS UpdatedAt
             """;
 
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var command = new CommandDefinition(
             sql,
             new { Id = id, request.Name, request.Code, Now = timeProvider.GetUtcNow() },
@@ -141,4 +178,10 @@ public static partial class UpdateLanguage
         Level = LogLevel.Information,
         Message = "Updated language {LanguageId}")]
     private static partial void LogLanguageUpdated(ILogger logger, LanguageId languageId);
+
+    [LoggerMessage(
+        EventId = 1005,
+        Level = LogLevel.Information,
+        Message = "Language update was forbidden by OpenFGA for language {LanguageId}")]
+    private static partial void LogLanguageUpdateForbidden(ILogger logger, LanguageId languageId);
 }

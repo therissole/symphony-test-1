@@ -33,12 +33,14 @@ var openFga = builder
         "OPENFGA_DATASTORE_URI",
         $"{openFgaDatabase.Resource.UriExpression}?sslmode=disable")
     .WithEnvironment("OPENFGA_PLAYGROUND_ENABLED", "false")
+    .WithEnvironment("OPENFGA_LIST_OBJECTS_DEADLINE", "5s")
     .WithHttpEndpoint(targetPort: 8080, name: "http")
     .WaitForCompletion(openFgaMigration)
     .WithHttpHealthCheck("/healthz");
 
 var openFgaProvisioning = builder
     .AddProject<Projects.symphony_test_1_OpenFgaProvisioning>("openfga-provisioning")
+    .WithReference(database)
     .WithEnvironment("OpenFga__ApiUrl", openFga.GetEndpoint("http"))
     .WithEnvironment("OpenFga__StoreName", "administration-authorization")
     .WithEnvironment("OpenFga__BootstrapSuperuserSubjects", "b612a21b-b2e7-4a97-a2b7-5c3d77d0342c,f5a0f69c-8cc7-4f68-9b45-6ff5b6f8b730")
@@ -49,6 +51,8 @@ var migrations = builder
     .AddProject<Projects.symphony_test_1_DatabaseMigrations>("database-migrations")
     .WithReference(database)
     .WaitFor(database);
+
+openFgaProvisioning = openFgaProvisioning.WaitForCompletion(migrations);
 
 var api = builder
     .AddProject<Projects.symphony_test_1_Api>("api")

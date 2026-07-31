@@ -1,13 +1,24 @@
 using System.Text.Json.Nodes;
-
+using Npgsql;
 using OpenFga.Sdk.Client;
 using OpenFga.Sdk.Client.Model;
 using OpenFga.Sdk.Configuration;
+using SymphonyTest1.OpenFgaProvisioning;
+
+using var shutdown = new CancellationTokenSource();
+Console.CancelKeyPress += (_, eventArgs) =>
+{
+    eventArgs.Cancel = true;
+    shutdown.Cancel();
+};
+var cancellationToken = shutdown.Token;
 
 var apiUrl = Environment.GetEnvironmentVariable("OpenFga__ApiUrl")
     ?? throw new InvalidOperationException("OpenFga__ApiUrl is required.");
 var storeName = Environment.GetEnvironmentVariable("OpenFga__StoreName")
     ?? throw new InvalidOperationException("OpenFga__StoreName is required.");
+var applicationConnectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+    ?? throw new InvalidOperationException("ConnectionStrings__DefaultConnection is required.");
 var superuserSubjects = ReadSubjects("OpenFga__BootstrapSuperuserSubjects");
 var standardUserSubjects = ReadSubjects("OpenFga__BootstrapStandardUserSubjects");
 
@@ -15,10 +26,10 @@ var modelPath = Path.Combine(
     AppContext.BaseDirectory,
     "OpenFga",
     "authorization-model.json");
-var modelJson = await File.ReadAllTextAsync(modelPath);
+var modelJson = await File.ReadAllTextAsync(modelPath, cancellationToken);
 var authorizationModel = ClientWriteAuthorizationModelRequest.FromJson(modelJson);
 
-var client = new OpenFgaClient(new ClientConfiguration
+using var client = new OpenFgaClient(new ClientConfiguration
 {
     ApiUrl = apiUrl
 });
@@ -26,7 +37,7 @@ var client = new OpenFgaClient(new ClientConfiguration
 var stores = await client.ListStores(new ClientListStoresRequest
 {
     Name = storeName
-});
+}, cancellationToken: cancellationToken);
 var store = stores.Stores.SingleOrDefault(candidate =>
     string.Equals(candidate.Name, storeName, StringComparison.Ordinal));
 
@@ -37,7 +48,7 @@ if (store is null)
     var created = await client.CreateStore(new ClientCreateStoreRequest
     {
         Name = storeName
-    });
+    }, cancellationToken: cancellationToken);
     storeId = created.Id;
     Console.WriteLine("Created OpenFGA store '{0}' ({1}).", created.Name, storeId);
 }
@@ -47,7 +58,7 @@ else
     Console.WriteLine("Reusing OpenFGA store '{0}' ({1}).", store.Name, storeId);
 }
 
-var storeClient = new OpenFgaClient(new ClientConfiguration
+using var storeClient = new OpenFgaClient(new ClientConfiguration
 {
     ApiUrl = apiUrl,
     StoreId = storeId
@@ -57,7 +68,8 @@ var authorizationModels = await storeClient.ReadAuthorizationModels(
     new ClientReadAuthorizationModelsOptions
     {
         PageSize = 1
-    });
+    },
+    cancellationToken);
 var latest = authorizationModels.AuthorizationModels.FirstOrDefault();
 var desiredModel = ParseModel(modelJson);
 var latestModel = latest is null ? null : ParseModel(latest.ToJson());
@@ -72,42 +84,85 @@ if (latest is not null
 }
 else
 {
-    var written = await storeClient.WriteAuthorizationModel(authorizationModel);
+    var written = await storeClient.WriteAuthorizationModel(
+        authorizationModel,
+        cancellationToken: cancellationToken);
     Console.WriteLine("Published authorization model {0} to store {1}.", written.AuthorizationModelId, storeId);
 }
 
-var bootstrapTuples = superuserSubjects
-    .Select(subject => new ClientTupleKey
-    {
-        User = $"user:{subject}",
-        Relation = "superuser",
-        Object = "system:global"
-    })
-    .Concat(standardUserSubjects.Select(subject => new ClientTupleKey
-    {
-        User = $"user:{subject}",
-        Relation = "standard_user",
-        Object = "system:global"
-    }))
-    .ToList();
+var bootstrapResult = await BootstrapRoleReconciler.ReconcileAsync(
+    storeClient,
+    superuserSubjects,
+    standardUserSubjects,
+    cancellationToken);
+Console.WriteLine(
+    "Reconciled {0} configured bootstrap role tuple(s): {1} added and {2} removed.",
+    bootstrapResult.DesiredCount,
+    bootstrapResult.AddedCount,
+    bootstrapResult.RemovedCount);
 
-if (bootstrapTuples.Count > 0)
+var resourceTuples = await ReadResourceTuplesAsync(applicationConnectionString, cancellationToken);
+foreach (var batch in resourceTuples.Chunk(100))
 {
     await storeClient.Write(
-        new ClientWriteRequest { Writes = bootstrapTuples },
+        new ClientWriteRequest { Writes = batch.ToList() },
         new ClientWriteOptions
         {
-            Conflict = new ConflictOptions
-            {
-                OnDuplicateWrites = OnDuplicateWrites.Ignore
-            }
-        });
-    Console.WriteLine("Ensured {0} bootstrap authorization tuple(s).", bootstrapTuples.Count);
+            Conflict = new ConflictOptions { OnDuplicateWrites = OnDuplicateWrites.Ignore }
+        },
+        cancellationToken);
 }
+Console.WriteLine("Ensured {0} resource authorization tuple(s).", resourceTuples.Count);
 
 static IReadOnlyList<string> ReadSubjects(string variableName) =>
     (Environment.GetEnvironmentVariable(variableName) ?? string.Empty)
         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+static async Task<List<ClientTupleKey>> ReadResourceTuplesAsync(
+    string connectionString,
+    CancellationToken cancellationToken)
+{
+    var tuples = new List<ClientTupleKey>();
+    await using var connection = new NpgsqlConnection(connectionString);
+    await connection.OpenAsync(cancellationToken);
+
+    await AddResourceTuplesAsync(
+        "SELECT id FROM languages",
+        "language",
+        connection,
+        tuples,
+        cancellationToken);
+    await AddResourceTuplesAsync(
+        "SELECT id FROM greetings",
+        "greeting",
+        connection,
+        tuples,
+        cancellationToken);
+
+    return tuples;
+}
+
+static async Task AddResourceTuplesAsync(
+    string sql,
+    string type,
+    NpgsqlConnection connection,
+    ICollection<ClientTupleKey> tuples,
+    CancellationToken cancellationToken)
+{
+#pragma warning disable CA2100 // Callers use static, repository-owned SQL statements.
+    await using var command = new NpgsqlCommand(sql, connection);
+#pragma warning restore CA2100
+    await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+    while (await reader.ReadAsync(cancellationToken))
+    {
+        tuples.Add(new ClientTupleKey
+        {
+            User = "system:global",
+            Relation = "system",
+            Object = $"{type}:{reader.GetGuid(0)}"
+        });
+    }
+}
 
 static JsonNode ParseModel(string json)
 {

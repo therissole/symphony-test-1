@@ -13,7 +13,8 @@ namespace AcceptanceTests.Core;
 internal sealed class ApiTransport(
     AcceptanceOptions options,
     string? userName = null,
-    string? password = null) : IAsyncDisposable
+    string? password = null,
+    bool authenticate = true) : IAsyncDisposable
 {
     public static JsonSerializerOptions Json { get; } = new(JsonSerializerDefaults.Web);
     private readonly HttpClient _client = new() { BaseAddress = options.BaseUri };
@@ -32,11 +33,18 @@ internal sealed class ApiTransport(
     public async Task<ApiResponse> SendForResponseAsync(HttpMethod method, string path, object? body, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(method, path);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await TokenAsync(ct));
+        if (authenticate)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await TokenAsync(ct));
+        }
+
         if (body is not null) request.Content = JsonContent.Create(body, options: Json);
         using var response = await _client.SendAsync(request, ct);
         return new ApiResponse(response.StatusCode, await response.Content.ReadAsStringAsync(ct));
     }
+
+    public static ApiTransport Anonymous(AcceptanceOptions options) =>
+        new(options, authenticate: false);
 
     public ValueTask DisposeAsync() { _client.Dispose(); return ValueTask.CompletedTask; }
 

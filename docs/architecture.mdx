@@ -42,16 +42,33 @@ flowchart LR
     Pipeline --> Authentication{"Authenticated?"}
     Authentication -->|No| Unauthorized["401 Unauthorized"]
     Authentication -->|Yes| Slice["One administration request slice"]
-    Slice --> Validation{"Input valid?"}
+    Slice --> Authorization{"OpenFGA permission granted?"}
+    Authorization -->|No| Forbidden["403 Problem Details"]
+    Authorization -->|Yes| Validation{"Input valid?"}
     Validation -->|No| ValidationProblem["400 Validation Problem"]
     Validation -->|Yes| Database["Npgsql + request-specific Dapper SQL"]
-    Database --> Result["Typed HTTP result"]
+    Database -->|query/update| Result["Typed HTTP result"]
+    Database -->|tuple mutation intent| Outbox["Transactional tuple outbox"]
+    Outbox --> OpenFGA["Synchronous OpenFGA dispatch"]
+    OpenFGA --> Result
+    Outbox -. interrupted dispatch .-> Recovery["Background idempotent recovery"]
     Slice -. unexpected failure .-> ProblemDetails["Global Problem Details"]
 ```
 
 There is no application-wide service or repository gate. A query can use a purpose-built join while
 a command can use `INSERT ... RETURNING`. Each slice chooses the simplest pattern that fulfills its
-request.
+request. Authorization is evaluated before request validation. Read and write slices first check
+the caller's system-level catalog capability, giving unassigned users a stable `403`; authorized
+callers retain normal `404` behavior for missing resources. Object checks and `ListObjects` still
+apply the resource relations from the model.
+
+OpenFGA relationship changes use shared platform infrastructure because PostgreSQL and OpenFGA
+cannot participate in one transaction. A command records an idempotent tuple operation in the same
+PostgreSQL transaction as its row change, commits, and dispatches before returning success. A hosted
+recovery loop replays any operation interrupted by a process or network failure. Authorization
+queries request OpenFGA's higher-consistency mode so a successful command is immediately visible to
+following checks and searches. Completed outbox operations remain available for seven days of
+diagnosis and are then pruned in bounded batches; pending operations have no age-based expiry.
 
 ## Project structure
 
@@ -259,8 +276,14 @@ entity types inside the API.
 
 ## Transactions and domain logic
 
-The sample's commands each require one SQL statement, so they do not need explicit transactions.
-When a use case requires multiple atomic writes, its slice should own the transaction boundary.
+Simple updates remain single-statement transaction scripts. Create and delete slices own explicit
+transactions because each business-row mutation must commit atomically with its OpenFGA tuple
+intent in the PostgreSQL outbox. Language deletion locks the parent row before enumerating child
+greetings, preventing a concurrent greeting create from escaping the corresponding tuple deletes.
+It then locks every existing child greeting before deriving those deletes, so a concurrent update
+cannot move a greeting out of the cascade while leaving its surviving row without an authorization
+tuple. After commit, the slice synchronously dispatches its outbox operations before reporting
+success; the shared recovery worker safely replays interrupted work.
 
 Start with a transaction script. If business rules become complex, refactor that slice toward the
 appropriate domain model or service. Do not impose one domain pattern on every request.

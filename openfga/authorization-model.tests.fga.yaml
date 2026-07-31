@@ -27,6 +27,8 @@ tests:
       - user: user:system-administrator
         object: system:global
         assertions:
+          can_read_catalog: true
+          can_manage_catalog: true
           can_create_language: true
           can_create_greeting: true
       - user: user:system-administrator
@@ -47,6 +49,8 @@ tests:
       - user: user:standard-user
         object: system:global
         assertions:
+          can_read_catalog: true
+          can_manage_catalog: false
           can_create_language: false
           can_create_greeting: false
       - user: user:standard-user
@@ -67,6 +71,8 @@ tests:
       - user: user:unassigned
         object: system:global
         assertions:
+          can_read_catalog: false
+          can_manage_catalog: false
           can_create_language: false
           can_create_greeting: false
       - user: user:unassigned

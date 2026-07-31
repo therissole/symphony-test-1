@@ -1,13 +1,8 @@
-using Dapper;
-
 using System.Security.Claims;
-
+using Dapper;
 using FluentValidation;
-
 using Microsoft.AspNetCore.Http.HttpResults;
-
 using Npgsql;
-
 using SymphonyTest1.Api.Infrastructure.Authorization;
 using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
@@ -64,18 +59,19 @@ public static partial class CreateGreeting
             .WithDescription("Adds a greeting for an existing language.")
             .Produces<Response>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status401Unauthorized)
-            .Produces(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesValidationProblem();
     }
 
     /// <summary>
     /// Authorizes greeting creation, validates the request, then persists and returns the new greeting.
     /// </summary>
-    private static async Task<Results<Created<Response>, ValidationProblem, ForbidHttpResult>> Handle(
+    private static async Task<Results<Created<Response>, ValidationProblem, ProblemHttpResult>> Handle(
         Request request,
         IValidator<Request> validator,
         ClaimsPrincipal user,
         IOpenFgaAuthorization authorization,
+        IOpenFgaTupleOutbox tupleOutbox,
         NpgsqlDataSource dataSource,
         TimeProvider timeProvider,
         ILoggerFactory loggerFactory,
@@ -90,7 +86,10 @@ public static partial class CreateGreeting
         if (!canCreateGreeting)
         {
             LogGreetingCreationForbidden(logger);
-            return TypedResults.Forbid();
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden",
+                detail: "You do not have permission to create a greeting.");
         }
 
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
@@ -129,12 +128,16 @@ public static partial class CreateGreeting
         {
             var databaseGreeting = await connection.QuerySingleAsync<DatabaseResponse>(command);
             var greeting = ToResponse(databaseGreeting);
-            await authorization.WriteTupleAsync(
+            var tupleOperationId = await tupleOutbox.EnqueueAsync(
+                OpenFgaTupleOperation.Write,
                 user: "system:global",
                 relation: "system",
                 @object: $"greeting:{greeting.Id}",
+                connection,
+                transaction,
                 cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+            await tupleOutbox.DispatchAsync(tupleOperationId, cancellationToken);
             LogGreetingCreated(logger, greeting.Id, greeting.LanguageId);
 
             return TypedResults.Created($"/api/greetings/{greeting.Id}", greeting);

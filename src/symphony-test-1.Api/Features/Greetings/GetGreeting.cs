@@ -1,11 +1,9 @@
 using System.ComponentModel;
-
+using System.Security.Claims;
 using Dapper;
-
 using Microsoft.AspNetCore.Http.HttpResults;
-
 using Npgsql;
-
+using SymphonyTest1.Api.Infrastructure.Authorization;
 using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
@@ -36,14 +34,30 @@ public static class GetGreeting
             .WithDescription("Returns a stored greeting by its unique identifier.")
             .Produces<Response>()
             .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .Produces(StatusCodes.Status404NotFound);
     }
 
-    private static async Task<Results<Ok<Response>, NotFound>> Handle(
+    private static async Task<Results<Ok<Response>, NotFound, ProblemHttpResult>> Handle(
         [Description("The unique greeting identifier.")] GreetingId id,
+        ClaimsPrincipal user,
+        IOpenFgaAuthorization authorization,
         NpgsqlDataSource dataSource,
         CancellationToken cancellationToken)
     {
+        var canReadCatalog = await authorization.IsAllowedAsync(
+            user,
+            relation: "can_read_catalog",
+            @object: "system:global",
+            cancellationToken);
+        if (!canReadCatalog)
+        {
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden",
+                detail: "You do not have permission to view this greeting.");
+        }
+
         const string sql = """
             SELECT
                 id,
@@ -59,10 +73,24 @@ public static class GetGreeting
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var command = new CommandDefinition(sql, new { Id = id }, cancellationToken: cancellationToken);
         var databaseGreeting = await connection.QuerySingleOrDefaultAsync<DatabaseResponse>(command);
+        if (databaseGreeting is null)
+        {
+            return TypedResults.NotFound();
+        }
 
-        return databaseGreeting is null
-            ? TypedResults.NotFound()
-            : TypedResults.Ok(ToResponse(databaseGreeting));
+        var canViewGreeting = await authorization.IsAllowedAsync(
+            user,
+            relation: "can_view",
+            @object: $"greeting:{id}",
+            cancellationToken);
+        if (!canViewGreeting)
+        {
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden",
+                detail: "You do not have permission to view this greeting.");
+        }
+        return TypedResults.Ok(ToResponse(databaseGreeting));
     }
 
     private sealed record DatabaseResponse(

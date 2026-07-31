@@ -28,6 +28,8 @@ Returns all greetings ordered by greeting text.
 **Responses**
 
 - `200 OK` — array of greeting responses
+- `400 Bad Request` — the supplied creation-time range is invalid
+- `403 Forbidden` — authenticated user cannot read the catalog
 
 ## GET /api/greetings/{id}
 
@@ -38,6 +40,7 @@ Returns all greetings ordered by greeting text.
 **Responses**
 
 - `200 OK` — greeting response
+- `403 Forbidden` — authenticated user cannot read the catalog or related greeting
 - `404 Not Found` — greeting does not exist
 
 ## GET /api/greetings/by-language/{languageCode}
@@ -69,6 +72,7 @@ Returns:
 **Responses**
 
 - `200 OK` — matching language-aware greeting
+- `403 Forbidden` — authenticated user cannot view greetings
 - `404 Not Found` — no greeting matches the code and optional formality
 
 ## POST /api/greetings
@@ -110,6 +114,7 @@ Replaces `languageId`, `greetingText`, and `formal` using the same validation ru
 
 - `200 OK` — updated greeting
 - `400 Bad Request` — validation problem
+- `403 Forbidden` — authenticated user lacks `can_update`
 - `404 Not Found` — greeting does not exist
 
 ## DELETE /api/greetings/{id}

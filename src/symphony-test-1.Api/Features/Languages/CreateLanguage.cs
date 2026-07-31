@@ -1,12 +1,10 @@
+using System.Security.Claims;
 using Dapper;
-
 using FluentValidation;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-
 using Npgsql;
-
+using SymphonyTest1.Api.Infrastructure.Authorization;
 using SymphonyTest1.Api.Infrastructure.Identifiers;
 using SymphonyTest1.Api.Infrastructure.Time;
 
@@ -62,19 +60,37 @@ public static partial class CreateLanguage
             .WithDescription("Adds a language with a unique name and code to the catalog.")
             .Produces<Response>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesValidationProblem()
             .Produces<ProblemDetails>(StatusCodes.Status409Conflict);
     }
 
-    private static async Task<Results<Created<Response>, ValidationProblem, Conflict<ProblemDetails>>> Handle(
+    private static async Task<Results<Created<Response>, ValidationProblem, Conflict<ProblemDetails>, ProblemHttpResult>> Handle(
         Request request,
         IValidator<Request> validator,
+        ClaimsPrincipal user,
+        IOpenFgaAuthorization authorization,
+        IOpenFgaTupleOutbox tupleOutbox,
         NpgsqlDataSource dataSource,
         TimeProvider timeProvider,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger(typeof(CreateLanguage).FullName!);
+        var canCreateLanguage = await authorization.IsAllowedAsync(
+            user,
+            relation: "can_create_language",
+            @object: "system:global",
+            cancellationToken);
+        if (!canCreateLanguage)
+        {
+            LogLanguageCreationForbidden(logger);
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden",
+                detail: "You do not have permission to create a language.");
+        }
+
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
@@ -93,15 +109,27 @@ public static partial class CreateLanguage
             """;
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         var command = new CommandDefinition(
             sql,
             new { request.Name, request.Code, Now = timeProvider.GetUtcNow() },
+            transaction: transaction,
             cancellationToken: cancellationToken);
 
         try
         {
             var databaseLanguage = await connection.QuerySingleAsync<DatabaseResponse>(command);
             var language = ToResponse(databaseLanguage);
+            var tupleOperationId = await tupleOutbox.EnqueueAsync(
+                OpenFgaTupleOperation.Write,
+                user: "system:global",
+                relation: "system",
+                @object: $"language:{language.Id}",
+                connection,
+                transaction,
+                cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            await tupleOutbox.DispatchAsync(tupleOperationId, cancellationToken);
             LogLanguageCreated(logger, language.Id, language.Code);
 
             return TypedResults.Created($"/api/languages/{language.Id}", language);
@@ -131,4 +159,10 @@ public static partial class CreateLanguage
         ILogger logger,
         LanguageId languageId,
         string languageCode);
+
+    [LoggerMessage(
+        EventId = 1004,
+        Level = LogLevel.Information,
+        Message = "Language creation was forbidden by OpenFGA")]
+    private static partial void LogLanguageCreationForbidden(ILogger logger);
 }
