@@ -54,6 +54,8 @@
 
     private async Task DeleteAsync()
     {
+        BrowserTelemetry.NameCurrentAction("Delete language confirmed");
+
         _deleting = true;
         _error = null;
 

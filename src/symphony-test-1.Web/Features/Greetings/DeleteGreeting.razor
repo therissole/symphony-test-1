@@ -44,6 +44,8 @@
 
     private async Task DeleteAsync()
     {
+        BrowserTelemetry.NameCurrentAction("Delete greeting confirmed");
+
         _deleting = true;
         _error = null;
 

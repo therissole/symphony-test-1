@@ -113,6 +113,8 @@
 
     private async Task SaveAsync()
     {
+        BrowserTelemetry.NameCurrentAction("Create greeting clicked");
+
         await _form!.ValidateAsync();
         if (!_form.IsValid || _languageId is null)
         {

@@ -67,6 +67,8 @@
 
     private async Task SaveAsync()
     {
+        BrowserTelemetry.NameCurrentAction("Create language clicked");
+
         await _form!.ValidateAsync();
         if (!_form.IsValid)
         {

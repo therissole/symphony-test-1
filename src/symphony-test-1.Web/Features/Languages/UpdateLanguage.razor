@@ -110,6 +110,8 @@
 
     private async Task SaveAsync()
     {
+        BrowserTelemetry.NameCurrentAction("Update language clicked");
+
         await _form!.ValidateAsync();
         if (!_form.IsValid)
         {

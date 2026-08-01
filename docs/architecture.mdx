@@ -338,6 +338,12 @@ without exposing dashboard credentials to the browser.
 The migration harness applies all ordered `V*.sql` files, so adding a migration does not require
 editing test infrastructure.
 
+Command UI slices give Blazor's automatically created event-handler activity a stable,
+user-facing display name such as `Create language clicked` or `Delete greeting confirmed`.
+The slice owns the action name, while shared browser telemetry infrastructure safely applies it
+to the current activity. Names describe user intent and remain low-cardinality; record values,
+identifiers, and user details do not appear in span names.
+
 ## Adding a slice
 
 1. Name the use case in command/query language, such as `SearchGreetings` or `ArchiveLanguage`.
