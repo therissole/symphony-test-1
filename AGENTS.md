@@ -117,6 +117,21 @@ topology-edit behavior as the API/UI inner loop.
 - Call a request/use case a slice; call `Languages` and `Greetings` capabilities or feature areas.
 - Update API status-code documentation whenever endpoint behavior changes.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are tracked in GitHub Issues using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default Matt Pocock triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository using root `CONTEXT.md` and `docs/adr/`. See
+`docs/agents/domain.md`.
+
 ## Safety
 
 - Do not modify `.git/`.
